@@ -1,6 +1,9 @@
 {
   "name": "orchestrator-local",
   "description": "Marketplace local para plugins ScacsWeb",
+  "owner": {
+    "name": "ScacsWeb"
+  },
   "plugins": [
     {
       "name": "orchestrator-skill-full",
