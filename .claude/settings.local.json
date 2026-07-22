@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"C:/Desarrollo/SVN/ScacsWeb/IA/SkillsClaude/orchestrator-skill-full\" 2>&1; echo \"---RS---\"; ls -la \"C:/Desarrollo/SVN/rs/Agentes/SkillsClaude/rs-skill-full\" 2>&1)"
+    ]
+  }
+}

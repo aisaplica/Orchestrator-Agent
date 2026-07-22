@@ -1,0 +1,7 @@
+{
+  "orchestrator-workspace": {
+    "type": "stdio",
+    "command": "python",
+    "args": ["./mcp/orchestrator-workspace-server.py"]
+  }
+}
