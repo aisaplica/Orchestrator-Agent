@@ -10,8 +10,7 @@ description: 'Agente C# senior para proyectos ScacsWeb. Usar SIEMPRE que el mens
 **Localizar el directorio del skill** ejecutando PowerShell:
 
 ```powershell
-# Reintento: el plugin de skills puede tardar en terminar de extraer el .skill-root a disco —
-# sin retry, correr esto justo tras invocar la skill puede fallar por condición de carrera.
+# Mecanismo 1: búsqueda .skill-root (instalación vía plugin marketplace)
 $marker = $null
 for ($i = 0; $i -lt 5 -and -not $marker; $i++) {
     if ($i -gt 0) { Start-Sleep -Milliseconds 500 }
@@ -19,7 +18,15 @@ for ($i = 0; $i -lt 5 -and -not $marker; $i++) {
         Where-Object { (Get-Content $_.FullName -ErrorAction SilentlyContinue).Trim() -eq "orchestrator-agent" } |
         Select-Object -First 1
 }
-$SKILL_DIR = $marker.Directory.Parent.FullName
+if ($marker) {
+    $SKILL_DIR = $marker.Directory.Parent.FullName
+} else {
+    # Mecanismo 2: skills-dir (instalación manual en ~/.claude/skills/)
+    $skillsDirPath = Join-Path $env:USERPROFILE ".claude\skills\orchestrator-agent"
+    if (Test-Path $skillsDirPath) {
+        $SKILL_DIR = $skillsDirPath
+    }
+}
 Write-Host "SKILL_DIR=$SKILL_DIR"
 ```
 

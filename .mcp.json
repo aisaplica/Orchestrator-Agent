@@ -1,7 +1,9 @@
 {
-  "orchestrator-workspace": {
-    "type": "stdio",
-    "command": "python",
-    "args": ["./mcp/orchestrator-workspace-server.py"]
+  "mcpServers": {
+    "orchestrator-workspace": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["./mcp/orchestrator-workspace-server.py"]
+    }
   }
 }
