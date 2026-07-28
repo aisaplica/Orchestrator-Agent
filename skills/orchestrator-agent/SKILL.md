@@ -228,3 +228,13 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Dependencias | `/orchestrator-deps`, "qué usa X", "mapa dependencias", "impacto de cambiar X" | `$SKILL_DIR\agents\dependencias.md` |
 | Docs ScacsWeb | `/orchestrator-scacs-docs`, "documentación técnica scacs" | `$SKILL_DIR\agents\scacs-docs.md` |
 | Mantis | `/orchestrator-mantis NNNN [Solucion.sln]`, "mantis NNNN" | `$SKILL_DIR\agents\mantis.md` |
+| Review | `/orchestrator-review`, "revisa el diff de X.sln", "code review X.sln" | `detect_vcs` → `$SKILL_DIR\agents\review.md` |
+| Explicar | `/orchestrator-explicar`, "explica la clase X", "qué hace el método X en Y.sln" | `$SKILL_DIR\agents\explicar.md` |
+| Hotspots | `/orchestrator-hotspots`, "puntos calientes de X.sln", "qué ficheros cambian más" | `detect_vcs` → `$SKILL_DIR\agents\hotspots.md` |
+| Dead code | `/orchestrator-dead-code`, "código muerto en X.sln", "clases sin referencias" | `$SKILL_DIR\agents\dead-code.md` |
+| Rendimiento BD | `/orchestrator-perf`, "rendimiento BD de X.sln", "índices faltantes en X" | `$SKILL_DIR\agents\perf.md` |
+| Ejecutar tests | `/orchestrator-test`, "ejecuta tests de X.sln", "pasa los tests" | `$SKILL_DIR\agents\test.md` |
+| Cobertura | `/orchestrator-cobertura`, "cobertura de tests X.sln", "qué métodos no tienen test" | `$SKILL_DIR\agents\cobertura.md` |
+| Release notes | `/orchestrator-release-notes`, "notas de versión", "qué cambió en los últimos commits" | `detect_vcs` → `$SKILL_DIR\agents\release-notes.md` |
+| Deshacer | `/orchestrator-deshacer`, "deshaz los cambios de X.sln", "revert X.sln" | `detect_vcs` → `$SKILL_DIR\agents\deshacer.md` |
+| Doc drift | `/orchestrator-doc-drift`, "documentación obsoleta de X.sln", "docs desactualizados" | `detect_vcs` → `$SKILL_DIR\agents\doc-drift.md` |

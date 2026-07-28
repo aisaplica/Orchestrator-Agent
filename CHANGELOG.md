@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.3.0] — 2026-07-28
+
+### Nuevos agentes (Fase 2)
+
+10 agentes nuevos que añaden capacidades de análisis avanzado sin requerir hooks nuevos:
+
+- `agents/review.md` — Revisión de código con veredicto APRUEBA/CAMBIOS/BLOQUEA. Cruza diff con lógica, modelo BD, seguridad y convenciones. Expone `/orchestrator-review`.
+- `agents/explicar.md` — Explica en lenguaje natural qué hace una clase/método/proceso y su flujo de datos. Expone `/orchestrator-explicar`.
+- `agents/hotspots.md` — Ranking de ficheros de mayor riesgo cruzando churn VCS con tamaño/complejidad. Expone `/orchestrator-hotspots`.
+- `agents/dead-code.md` — Detecta clases, métodos y DALCs sin referencias en el scope. Advisory — nunca elimina. Expone `/orchestrator-dead-code`.
+- `agents/perf.md` — Detecta índices faltantes, full-scans y filtros no-sargables en DALCs cruzados con el modelo BD. Expone `/orchestrator-perf`.
+- `agents/test.md` — Ejecuta `dotnet test` y reporta pasados/fallidos/omitidos sin lanzar el pipeline. Expone `/orchestrator-test`.
+- `agents/cobertura.md` — Mapa estático de cobertura: qué clases/métodos públicos carecen de tests. Expone `/orchestrator-cobertura`.
+- `agents/release-notes.md` — Transforma historial VCS en notas de versión funcionales organizadas por categoría. Expone `/orchestrator-release-notes`.
+- `agents/deshacer.md` — Revierte cambios pendientes (SVN/Git) con gate de confirmación obligatorio ("CONFIRMO"). Expone `/orchestrator-deshacer`.
+- `agents/doc-drift.md` — Cruza cambios recientes en código con docs/scacs/ para detectar documentación obsoleta. Expone `/orchestrator-doc-drift`.
+
+### Nuevos slash commands (Fase 2)
+
+- `commands/orchestrator-review.md`
+- `commands/orchestrator-explicar.md`
+- `commands/orchestrator-hotspots.md`
+- `commands/orchestrator-dead-code.md`
+- `commands/orchestrator-perf.md`
+- `commands/orchestrator-test.md`
+- `commands/orchestrator-cobertura.md`
+- `commands/orchestrator-release-notes.md`
+- `commands/orchestrator-deshacer.md`
+- `commands/orchestrator-doc-drift.md`
+
+### Modos directos añadidos
+
+`skills/orchestrator-agent/SKILL.md` — añadidas 10 filas en la tabla `# Modos directos`:
+review, explicar, hotspots, dead-code, perf, test, cobertura, release-notes, deshacer, doc-drift.
+
+---
+
 ## [1.2.0] — 2026-07-28
 
 ### Nuevos slash commands (`commands/`)

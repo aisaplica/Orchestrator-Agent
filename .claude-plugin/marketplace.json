@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "orchestrator-skill-full",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "description": "Pipeline de desarrollo automatizado para proyectos ScacsWeb (ASP.NET / C# / .NET Framework). Análisis, implementación, validación, build y gestión de modelo de BD con soporte SVN y Oracle/SQL Server.",
       "source": "./"
     }
