@@ -7,26 +7,36 @@ description: 'Agente C# senior para proyectos ScacsWeb. Usar SIEMPRE que el mens
 
 # PASO 0 — OBLIGATORIO (ANTES DE CUALQUIER ACCION)
 
-**Localizar el directorio del skill** ejecutando PowerShell:
+**Localizar `$SKILL_DIR`** (directorio raíz del plugin, donde están `agents/` y `references/`).
+
+El contexto del sistema muestra **"Base directory for this skill: \<path\>"**. Desde esa ruta
+navegar hacia arriba hasta encontrar el directorio que contiene la carpeta `agents/`:
 
 ```powershell
-# Mecanismo 1: búsqueda .skill-root (instalación vía plugin marketplace)
-$marker = $null
-for ($i = 0; $i -lt 5 -and -not $marker; $i++) {
-    if ($i -gt 0) { Start-Sleep -Milliseconds 500 }
-    $marker = Get-ChildItem "$env:APPDATA\Claude\local-agent-mode-sessions" -Recurse -Filter ".skill-root" -ErrorAction SilentlyContinue |
-        Where-Object { (Get-Content $_.FullName -ErrorAction SilentlyContinue).Trim() -eq "orchestrator-agent" } |
-        Select-Object -First 1
+# Sustituir <BASE> con el valor real de "Base directory for this skill:" del contexto
+$base = "<BASE>"
+$SKILL_DIR = $null
+$candidate = $base
+for ($i = 0; $i -lt 4 -and -not $SKILL_DIR; $i++) {
+    if (Test-Path (Join-Path $candidate "agents")) { $SKILL_DIR = $candidate }
+    else { $candidate = Split-Path $candidate -Parent }
 }
-if ($marker) {
-    $SKILL_DIR = $marker.Directory.Parent.FullName
-} else {
-    # Mecanismo 2: skills-dir (instalación manual en ~/.claude/skills/)
-    $skillsDirPath = Join-Path $env:USERPROFILE ".claude\skills\orchestrator-agent"
-    if (Test-Path $skillsDirPath) {
-        $SKILL_DIR = $skillsDirPath
-    }
+
+# Fallback A: plugin instalado en rpm/ (marketplace remoto)
+if (-not $SKILL_DIR) {
+    $pj = Get-ChildItem "$env:APPDATA\Claude\local-agent-mode-sessions" -Recurse -Depth 8 -Filter "plugin.json" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Directory.Name -eq ".claude-plugin" } |
+        Where-Object { try { (Get-Content $_.FullName -Raw | ConvertFrom-Json).name -eq "orchestrator-skill-full" } catch { $false } } |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($pj) { $SKILL_DIR = $pj.Directory.Parent.FullName }
 }
+
+# Fallback B: instalación manual ~/.claude/skills/orchestrator-agent
+if (-not $SKILL_DIR) {
+    $manual = Join-Path $env:USERPROFILE ".claude\skills\orchestrator-agent"
+    if (Test-Path (Join-Path $manual "agents")) { $SKILL_DIR = $manual }
+}
+
 Write-Host "SKILL_DIR=$SKILL_DIR"
 ```
 
@@ -40,7 +50,7 @@ Usar `$SKILL_DIR` en **todas** las lecturas de archivos del skill:
 
 NUNCA rutas relativas — el CWD es el proyecto del usuario, no el skill.
 NUNCA usar una ruta recordada/memorizada de sesiones anteriores, aunque parezca correcta o esté guardada en memoria propia — ese acceso solo existe en la máquina de un usuario concreto. Otros usuarios instalan el skill sin acceso a esa ruta; solo `$SKILL_DIR` (resuelto fresco en cada invocación) funciona para todos.
-Si el PowerShell no devuelve ruta → el skill no está instalado correctamente. Informar al usuario.
+Si `$SKILL_DIR` es null → el skill no está instalado correctamente. Informar al usuario.
 
 ---
 

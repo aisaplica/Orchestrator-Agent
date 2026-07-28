@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "orchestrator-local",
   "description": "Marketplace local para plugins ScacsWeb",
   "owner": {
@@ -7,8 +8,11 @@
   "plugins": [
     {
       "name": "orchestrator-skill-full",
-      "path": ".",
-      "description": "Pipeline de desarrollo automatizado para proyectos ScacsWeb (ASP.NET / C# / .NET Framework). Análisis, implementación, validación, build y gestión de modelo de BD con soporte SVN y Oracle/SQL Server."
+      "description": "Pipeline de desarrollo automatizado para proyectos ScacsWeb (ASP.NET / C# / .NET Framework). Análisis, implementación, validación, build y gestión de modelo de BD con soporte SVN y Oracle/SQL Server.",
+      "author": {
+        "name": "ScacsWeb / Ingenieros"
+      },
+      "source": "."
     }
   ]
 }

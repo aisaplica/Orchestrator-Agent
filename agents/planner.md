@@ -66,6 +66,17 @@ NO incluir si es:
 - Si hay ambigüedad funcional → marcar para que core la resuelva antes de implementar.
 - Adaptar el plan al problema, no al revés.
 
-## Output (max 10 pasos, lista ordenada con nombre claro)
+## Output — OBLIGATORIO, emitir antes de cualquier otra acción
 
-Ejemplo: `1. AnalyzeSolution  2. ModifyValidation  3. Validate  4. Test`
+Emitir en la conversación (no omitir, no resumir internamente):
+
+```
+**[PLANNER]**
+Solución: <nombre.sln> | Tipo: <Batch|Online> | Workspace: <path>
+Cambio: <descripción breve>
+Agentes: <lista>
+
+Plan: 1. <Paso>  2. <Paso>  ...  N. <Paso>  (máx 10)
+```
+
+Solo entonces continuar al paso 2 del pipeline.

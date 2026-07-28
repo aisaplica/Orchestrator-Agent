@@ -1,0 +1,50 @@
+{
+  "_comment": "Configuración de proyectos ScacsWeb y cadena de estados para la skill mantis. RELLENAR los campos null con los valores reales de tu instancia MantisBT.",
+  "statusChain": [
+    "nueva",
+    "reconocida",
+    "asignada",
+    "confirmada",
+    "en proceso",
+    "en validación",
+    "resuelta",
+    "cerrada"
+  ],
+  "statusIds": {
+    "nueva": 10,
+    "reconocida": 20,
+    "asignada": 30,
+    "confirmada": 50,
+    "en proceso": null,
+    "en validación": null,
+    "resuelta": 80,
+    "cerrada": 90
+  },
+  "devStartStatus": "en proceso",
+  "devEndStatus": "en validación",
+  "projects": [
+    {
+      "id": 215,
+      "name": "SCACSWebCDI",
+      "contract": "602400",
+      "sln": "SCACSWebCDI",
+      "notes": "SCACS CDI HL Incidencias"
+    },
+    {
+      "id": null,
+      "name": "Ingenieros",
+      "contract": "",
+      "sln": "Ingenieros",
+      "notes": "Rellenar id con GET /projects"
+    },
+    {
+      "id": null,
+      "name": "BatchCirbe",
+      "contract": "",
+      "sln": "BatchCirbe",
+      "notes": "Rellenar id con GET /projects"
+    }
+  ],
+  "_how_to_find_ids": "Ejecutar: .\\hooks\\mantis-cli.ps1 -Action list-projects | Get-Content | ConvertFrom-Json para obtener los IDs internos reales",
+  "_how_to_find_status_ids": "Los IDs de estado personalizados (en proceso, en validación) se obtienen leyendo cualquier issue en ese estado: .\\hooks\\mantis-cli.ps1 -Action get-issue -IssueId NNNN | ConvertFrom-Json → .issues[0].status.id"
+}
