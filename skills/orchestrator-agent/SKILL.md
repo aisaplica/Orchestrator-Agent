@@ -210,6 +210,7 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Modo | Frases / Comando | Agente |
 |------|-----------------|--------|
 | Auditoría | `/orchestrator-auditoria`, "audita X.sln", "revisa calidad X.sln" | `$SKILL_DIR\agents\auditoria.md` |
+| Analizar | `/orchestrator-analizar`, "analiza cambios en X.sln", "analiza diff de X" | `detect_vcs` → `$SKILL_DIR\agents\analyzer.md` |
 | Impacto | `/orchestrator-impacto`, "impacto de cambiar X", "qué usa X en Y.sln" | `$SKILL_DIR\agents\impacto.md` |
 | Diff | `/orchestrator-diff`, "qué cambió en X", "pendientes de commit" | `detect_vcs` → `$SKILL_DIR\agents\diff-svn.md` |
 | Historial | `/orchestrator-historial`, "historial X", "ejecuciones recientes" | `$SKILL_DIR\agents\historial.md` |

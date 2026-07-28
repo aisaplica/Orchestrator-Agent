@@ -24,6 +24,12 @@ orchestrator-skill-full/
 ├── README.md
 ├── CHANGELOG.md
 │
+├── commands/                ← slash commands discoverables en el menú / de Claude Code
+│   ├── orchestrator-agent.md        ← pipeline principal
+│   ├── orchestrator-analizar.md
+│   ├── orchestrator-auditoria.md
+│   └── ... (20 ficheros — uno por modo directo)
+│
 ├── skills/                  ← skills invocables (orchestrator-skill-full:<name>)
 │   ├── orchestrator-agent/
 │   │   └── SKILL.md         ← pipeline completo (punto de entrada principal)
@@ -211,6 +217,7 @@ name: orchestrator-<nombre>
 | Agente | Modo |
 |--------|------|
 | `auditoria` | `/orchestrator-auditoria` |
+| `analyzer` | `/orchestrator-analizar` |
 | `impacto` | `/orchestrator-impacto` |
 | `diff-svn` | `/orchestrator-diff` |
 | `historial` | `/orchestrator-historial` |
@@ -450,6 +457,41 @@ Documentar en `references/mcp.md` o `references/hooks.md` si es relevante para e
 
 ---
 
+### §9.6 — Nuevo slash command (`commands/`)
+
+Los ficheros en `commands/` registran modos directos como slash commands discoverables en el menú
+`/` de Claude Code. Cada fichero tiene nombre kebab-case igual al comando sin la barra.
+
+**Componente único: `commands/<nombre>.md`**
+
+```markdown
+---
+description: "<descripción visible en el menú />"
+argument-hint: "<argumentos>"
+---
+
+Invoke the `orchestrator-skill-full:orchestrator-agent` skill in <modo> mode.
+
+Usage: /orchestrator-<modo> <args>
+Example: /orchestrator-<modo> ScacsWeb.sln
+
+After loading the skill (PASO 0 resolves SKILL_DIR), read `$SKILL_DIR\agents\<agente>.md` inline
+and follow its instructions. Pass `sln_path` = $ARGUMENTS, `workspace` = cwd. Relay output verbatim.
+```
+
+Para modos con detección de VCS añadir antes de leer el agente:
+```
+Call `detect_vcs(workspace)` first — if "none", inform the user and stop.
+```
+
+**Archivos a crear:**
+- `commands/<nombre>.md` — CREAR
+
+**Regla:** el nuevo slash command debe corresponder a un modo directo ya existente o uno nuevo
+completo (§9.1). No crear `commands/<nombre>.md` sin su agente y su fila en la tabla de modos.
+
+---
+
 ### §9.5 — Cambio de manifest / infraestructura
 
 Para cambios en `.mcp.json`, `plugin.json` (sin ser version bump), `.claude-plugin/`:
@@ -489,6 +531,12 @@ Después de cualquier cambio, ejecutar esta checklist **antes de reportar éxito
 
 - [ ] `skills/<nombre>/SKILL.md` creado con PASO 0
 - [ ] `README.md` — si la skill es visible al usuario
+
+### Nuevo slash command (§9.6)
+
+- [ ] `commands/<nombre>.md` creado
+- [ ] Agente correspondiente existe en `agents/`
+- [ ] Modo directo registrado en tabla de `skills/orchestrator-agent/SKILL.md`
 
 ### Cambio de anatomía del plugin
 

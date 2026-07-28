@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.2.0] — 2026-07-28
+
+### Nuevos slash commands (`commands/`)
+
+Creada la carpeta `commands/` con 20 ficheros `.md` que registran los modos del plugin como
+slash commands discoverables en el menú `/` de Claude Code. Antes estos modos solo se activaban
+por frases en lenguaje natural; ahora aparecen como `/orchestrator-*` en el autocompletado.
+
+- `commands/orchestrator-agent.md` — Pipeline completo ScacsWeb
+- `commands/orchestrator-analizar.md` — Análisis de diff/cambio concreto (expone `agents/analyzer.md`)
+- `commands/orchestrator-auditoria.md` — Auditoría estática de toda la solución
+- `commands/orchestrator-impacto.md` — Análisis de referencias a una clase/método/tabla
+- `commands/orchestrator-diff.md` — Cambios pendientes SVN/Git agrupados por proyecto
+- `commands/orchestrator-historial.md` — Últimas N ejecuciones del pipeline
+- `commands/orchestrator-comparar-modelo.md` — Drift entre modelo BD JSON y esquema real
+- `commands/orchestrator-idiomas.md` — Scripts INSERT para SIIdioma/SIControles
+- `commands/orchestrator-doc.md` — Generación de documentación técnica
+- `commands/orchestrator-env.md` — Validación de entorno de desarrollo
+- `commands/orchestrator-estructura.md` — Mapa de capas y dependencias de la solución
+- `commands/orchestrator-commit.md` — Diff + sugerencia de commit con gate de confirmación
+- `commands/orchestrator-crear-tests.md` — Generación de tests unitarios
+- `commands/orchestrator-erd.md` — Gestión de modelo BD, ERD y generación SQL
+- `commands/orchestrator-stats.md` — Estadísticas del pipeline
+- `commands/orchestrator-validar-req.md` — Verificación de requerimiento contra diff
+- `commands/orchestrator-security.md` — Scan de seguridad (SQL injection, XSS, credenciales)
+- `commands/orchestrator-deps.md` — Mapa de dependencias entre proyectos
+- `commands/orchestrator-mantis.md` — Ciclo de vida MantisBT completo
+- `commands/orchestrator-scacs-docs.md` — Navegación de documentación técnica ScacsWeb
+
+### Nuevos modos directos
+
+- `skills/orchestrator-agent/SKILL.md` — Añadido modo `Analizar` (`/orchestrator-analizar`) que
+  expone `agents/analyzer.md` como modo directo (antes solo se usaba internamente en el pipeline).
+
+---
+
 ## [1.1.0] — 2026-07-28
 
 ### Nuevas skills
