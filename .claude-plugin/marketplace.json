@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "orchestrator-local",
-  "description": "Marketplace local para plugins ScacsWeb",
+  "name": "aisaplica",
+  "description": "Marketplace ScacsWeb — Orchestrator Agent plugin",
   "owner": {
     "name": "ScacsWeb"
   },
