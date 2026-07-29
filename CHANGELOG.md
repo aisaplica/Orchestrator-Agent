@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.4.0] — 2026-07-29
+
+### Nuevos agentes (Fase 3)
+
+11 agentes nuevos que añaden capacidades de scaffolding, infraestructura y gestión avanzada:
+
+- `agents/sync-indexes.md` — Sincroniza índices Oracle al modelo BD JSON del workspace. Oracle-only. Expone `/orchestrator-sync-indexes`.
+- `agents/help.md` — Renderiza README y CHANGELOG del plugin como página HTML navegable. Expone `/orchestrator-help`.
+- `agents/schema.md` — Muestra esquema completo de tabla(s): columnas, tipos, índices, relaciones. Expone `/orchestrator-schema`.
+- `agents/seed.md` — Genera N sentencias INSERT sintéticas para una tabla respetando tipos, NULLs y FKs. Escribe a `executions/seed_<tabla>_<timestamp>.sql`. Expone `/orchestrator-seed`.
+- `agents/comparar-entornos.md` — Compara esquema BD entre dos workspaces (ej. dev vs producción). Detecta columnas, tipos e índices distintos. Expone `/orchestrator-comparar-entornos`.
+- `agents/dashboard.md` — Genera un dashboard HTML (via Artifact) con KPIs, tendencia y últimas ejecuciones del pipeline desde `executions/history.json`. Expone `/orchestrator-dashboard`.
+- `agents/format.md` — Detecta y aplica correcciones de convención ScacsWeb (naming, usings, whitespace) con gate de confirmación obligatorio ("CONFIRMO"). Expone `/orchestrator-format`.
+- `agents/rename.md` — Renombra un símbolo C# y todas sus referencias en la solución con gate de confirmación. Verifica compilación tras aplicar. Expone `/orchestrator-rename`.
+- `agents/generar-dalc.md` — Genera clases DALC + BE ScacsWeb completas a partir del esquema de una tabla BD. Compatible Oracle y SQL Server. Gate antes de escribir. Expone `/orchestrator-generar-dalc`.
+- `agents/init.md` — Bootstrap de workspace: crea `workspace.json`, carpetas (`executions/`, `docs/`), `docs/00-index.md` y sincroniza el modelo BD inicial. Gate antes de crear. Expone `/orchestrator-init`.
+- `agents/migrar.md` — Migra DALCs y SQL entre Oracle y SQL Server (o viceversa): tipos, parámetros, comandos, sintaxis SQL. Backup automático. Gate + compile check. Expone `/orchestrator-migrar`.
+
+### Nuevos slash commands (Fase 3)
+
+- `commands/orchestrator-sync-indexes.md`
+- `commands/orchestrator-help.md`
+- `commands/orchestrator-schema.md`
+- `commands/orchestrator-seed.md`
+- `commands/orchestrator-comparar-entornos.md`
+- `commands/orchestrator-dashboard.md`
+- `commands/orchestrator-format.md`
+- `commands/orchestrator-rename.md`
+- `commands/orchestrator-generar-dalc.md`
+- `commands/orchestrator-init.md`
+- `commands/orchestrator-migrar.md`
+
+### Modos directos añadidos
+
+`skills/orchestrator-agent/SKILL.md` — añadidas 11 filas en la tabla `# Modos directos`:
+sync-indexes, help, schema, seed, comparar-entornos, dashboard, format, rename, generar-dalc, init, migrar.
+
+---
+
 ## [1.3.0] — 2026-07-28
 
 ### Nuevos agentes (Fase 2)

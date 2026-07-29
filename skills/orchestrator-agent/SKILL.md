@@ -238,3 +238,14 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Release notes | `/orchestrator-release-notes`, "notas de versión", "qué cambió en los últimos commits" | `detect_vcs` → `$SKILL_DIR\agents\release-notes.md` |
 | Deshacer | `/orchestrator-deshacer`, "deshaz los cambios de X.sln", "revert X.sln" | `detect_vcs` → `$SKILL_DIR\agents\deshacer.md` |
 | Doc drift | `/orchestrator-doc-drift`, "documentación obsoleta de X.sln", "docs desactualizados" | `detect_vcs` → `$SKILL_DIR\agents\doc-drift.md` |
+| Sync indexes | `/orchestrator-sync-indexes [workspace]`, "sincroniza índices BD", "sync indexes" | `$SKILL_DIR\agents\sync-indexes.md` |
+| Help | `/orchestrator-help`, "ayuda del plugin", "qué comandos hay" | `$SKILL_DIR\agents\help.md` |
+| Schema BD | `/orchestrator-schema <tabla>`, "esquema de ECCLIENTES", "columnas de PRPROPUESTAS" | `$SKILL_DIR\agents\schema.md` |
+| Seed | `/orchestrator-seed <tabla> [N]`, "genera datos de prueba para ECCLIENTES", "INSERTs de prueba" | `$SKILL_DIR\agents\seed.md` |
+| Comparar entornos | `/orchestrator-comparar-entornos <ws1> [ws2] [tablas]`, "compara BD dev vs producción" | `$SKILL_DIR\agents\comparar-entornos.md` |
+| Dashboard | `/orchestrator-dashboard`, "dashboard del pipeline", "estadísticas de ejecuciones" | `$SKILL_DIR\agents\dashboard.md` |
+| Format | `/orchestrator-format <Sln>.sln [ruta]`, "aplica convenciones a X.sln", "formatea código" | `$SKILL_DIR\agents\format.md` |
+| Rename | `/orchestrator-rename <Sln>.sln <nombre> <nuevo>`, "renombra la clase X", "cambia nombre de método" | `$SKILL_DIR\agents\rename.md` |
+| Generar DALC | `/orchestrator-generar-dalc <tabla> [módulo]`, "genera DALC para PRPROPUESTAS", "crea clases acceso BD" | `$SKILL_DIR\agents\generar-dalc.md` |
+| Init | `/orchestrator-init [workspace]`, "inicializa workspace", "bootstrap proyecto nuevo" | `$SKILL_DIR\agents\init.md` |
+| Migrar | `/orchestrator-migrar <fichero> [--from X] [--to Y]`, "migra DALC de Oracle a SQL Server" | `$SKILL_DIR\agents\migrar.md` |
