@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0] — 2026-08-06
+
+### Fix
+- `hooks/*.ps1` (12 archivos) — añadido UTF-8 BOM (`EF BB BF`). Windows PowerShell 5.1 decodifica sin BOM con codepage ANSI, corrompiendo caracteres españoles (á, é, ó, ñ) y causando fallos de parse silenciosos o mensajes basura.
+- `hooks/mantis-cli.ps1` — fallback `USERPROFILE → HOME → "."` en lookup de `project-db-env/env.json`. Sin fallback, `Join-Path $null` revienta a media ejecución si la variable no existe.
+
+### Docs
+- `references/troubleshooting.md` — nueva sección "Hook falla silenciosamente / caracteres corruptos" con diagnóstico y fix para el problema de BOM en PS5.1.
+
+---
+
 ## [1.4.0] — 2026-07-29
 
 ### Nuevos agentes (Fase 3)

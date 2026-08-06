@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$csproj,
     [string]$profile = "FolderProfile"
 )

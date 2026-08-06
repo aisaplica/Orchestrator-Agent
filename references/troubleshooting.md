@@ -71,6 +71,33 @@ Solución:
 
 ---
 
+## Hook falla silenciosamente / caracteres corruptos en mensajes (PS5.1)
+
+Síntoma: hook termina sin output útil, o mensajes de error con caracteres como `â€"` o `Ã³` en lugar de `—` o `ó`.
+
+Causa: Windows PowerShell 5.1 (intérprete de producción) decodifica archivos `.ps1` sin BOM usando la codepage ANSI del sistema. Caracteres UTF-8 multibyte (á, é, ó, ñ, …) se malinterpretan, cerrando literales de string prematuramente y causando fallos de parse o mensajes basura.
+
+Solución: todos los `.ps1` deben tener UTF-8 con BOM (`EF BB BF` como primeros 3 bytes). Verificar con:
+
+```powershell
+$f = "hooks\mi-hook.ps1"
+[System.IO.File]::ReadAllBytes($f)[0..2] -join ',' # debe dar 239,187,191
+```
+
+Fix automático (todos los hooks del plugin):
+
+```powershell
+$BOM = [byte[]](0xEF,0xBB,0xBF)
+Get-ChildItem "hooks\*.ps1" | ForEach-Object {
+    $raw = [System.IO.File]::ReadAllBytes($_.FullName)
+    if ($raw[0..2] -ne [byte[]](0xEF,0xBB,0xBF)) {
+        [System.IO.File]::WriteAllBytes($_.FullName, $BOM + $raw)
+    }
+}
+```
+
+---
+
 ## NullReferenceException
 
 Causas:

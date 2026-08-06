@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Obtiene el diff y metadatos de uno o varios commits Git. Espejo de svn-diff-revision.ps1.
     Filtra ficheros binarios/generados. Útil para validar qué cambió en un commit.

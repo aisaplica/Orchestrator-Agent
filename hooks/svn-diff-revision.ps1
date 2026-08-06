@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Obtiene el diff y metadatos de una o varias revisiones SVN.
     Filtra ficheros binarios/generados. Útil para validar qué cambió en un commit.

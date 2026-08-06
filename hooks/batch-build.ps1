@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$solution,
     [string]$workspace
 )

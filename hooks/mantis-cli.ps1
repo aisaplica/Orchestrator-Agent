@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     CLI unificado para MantisBT REST API. Lee y escribe issues.
 
@@ -62,7 +62,8 @@ function Resolve-MantisCredentials {
     $key = $KeyParam
 
     if (-not $url -or -not $key) {
-        $envPath = Join-Path $env:USERPROFILE ".claude\skills\project-db-env\env.json"
+        $perfilUsuario = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { "." }
+        $envPath = Join-Path $perfilUsuario ".claude\skills\project-db-env\env.json"
         if (Test-Path $envPath) {
             try {
                 $cfg = Get-Content $envPath -Raw | ConvertFrom-Json

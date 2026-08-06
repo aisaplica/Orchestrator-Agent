@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Parsea un archivo .sln y devuelve scope, tipo y metadata como JSON.
     Elimina la necesidad de que el LLM lea y parsee el .sln manualmente.

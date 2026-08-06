@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Añade ficheros sin versionar a SVN con degradacion graceful:
     1. svn CLI (si disponible)

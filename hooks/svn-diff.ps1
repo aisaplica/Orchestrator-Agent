@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Obtiene el estado SVN del workspace y lo devuelve como JSON.
 .PARAMETER workspace

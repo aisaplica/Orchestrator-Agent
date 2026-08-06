@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Obtiene los detalles de un issue de MantisBT via REST API y devuelve JSON.
 

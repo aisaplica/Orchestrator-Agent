@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Valida el entorno de trabajo Orchestrator Agent ScacsWeb.
 .PARAMETER workspace
