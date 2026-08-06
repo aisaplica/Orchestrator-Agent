@@ -1,8 +1,8 @@
 ---
 title: Orchestrator Skill Full — Guía de instalación y uso
 tags: [plugin, claude-code, ia, scacsweb, orchestrator]
-version: v1.4.0
-fecha: 2026-07-30
+version: v1.5.0
+fecha: 2026-08-06
 autor: david.gandoy@ubimia.com
 ---
 
@@ -292,4 +292,4 @@ O manualmente con `git pull` en el directorio del plugin.
 
 - **Repositorio:** https://github.com/aisaplica/Orchestrator-Agent.git  
 - **Incidencias y sugerencias:** abrir issue en el repositorio o contactar con el equipo de IA.
-- **Versión actual:** v1.4.0 (2026-07-30)
+- **Versión actual:** v1.5.0 (2026-08-06)

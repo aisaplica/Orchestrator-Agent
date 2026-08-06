@@ -64,6 +64,11 @@ Scripts PowerShell en `hooks/`. Ejecutar directamente si el MCP no está activo.
 | `hooks/scan-aspx.ps1` | `-SlnPath <sln>` | Extrae controles AIS de .aspx → `RIDIOMA/RCONTROLES` inserts |
 | `hooks/skill-trigger.ps1` | (stdin JSON, hook UserPromptSubmit de Claude Code) | Detecta `.sln` en el prompt dentro de workspaces RS e inyecta recordatorio de invocar la skill — no lo ejecutan los agentes |
 
+## Requisito de codificación (PS5.1)
+
+Todos los `.ps1` deben guardarse con **UTF-8 con BOM** (`EF BB BF`). Windows PowerShell 5.1 sin BOM decodifica con codepage ANSI, corrompiendo caracteres españoles y causando fallos silenciosos.
+Ver `references/troubleshooting.md` → "Hook falla silenciosamente / caracteres corruptos".
+
 ## Build (via runner — ver `agents/build.md`)
 
 | Script | Parámetros | Descripción |
