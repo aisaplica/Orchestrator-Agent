@@ -32,6 +32,19 @@ $SKILL_DIR\
 
 # Proceso
 
+0. **Verificar `env.json`** — antes de cualquier acción:
+   - Comprobar si existe `$SKILL_DIR\env.json`
+   - Si **NO existe**: copiar `$SKILL_DIR\env.template.json` → `$SKILL_DIR\env.json`
+     ```powershell
+     Copy-Item "$SKILL_DIR\env.template.json" "$SKILL_DIR\env.json"
+     ```
+     Luego informar al usuario:
+     > ⚠️ **Primera ejecución**: se ha creado `env.json` desde la plantilla.
+     > Ábrelo en `$SKILL_DIR\env.json` y rellena los valores `<COMPLETAR>` con tus credenciales reales.
+     > Después repite tu petición.
+     
+     **Detener aquí** — no continuar hasta que el usuario confirme que ha rellenado el archivo.
+
 1. **Cargar `env.json`** — contiene:
    - `herramientas`: URLs y credenciales de Mantis, SVN, correo SMTP
    - `credenciales_bbdd`: usuarios/passwords por proyecto y entorno

@@ -35,6 +35,29 @@ $OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8
     }
 }
 
+# Check 0: env.json del plugin
+$pluginRoot = Split-Path $PSScriptRoot -Parent
+$envJson     = Join-Path $pluginRoot "env.json"
+$envTemplate = Join-Path $pluginRoot "env.template.json"
+if (Test-Path $envJson) {
+    try {
+        $env = Get-Content $envJson -Raw -Encoding UTF8 | ConvertFrom-Json
+        $placeholders = ($env | ConvertTo-Json -Depth 10 | Select-String "<COMPLETAR>|<TU_|<URL_|<HOST>|<PASSWORD>|<USUARIO>|<API_KEY>" -AllMatches).Matches.Count
+        if ($placeholders -gt 0) {
+            Add-Check "env.json" "WARN" "Existe pero tiene $placeholders placeholders sin rellenar"
+        } else {
+            Add-Check "env.json" "OK" "Configurado"
+        }
+    } catch {
+        Add-Check "env.json" "WARN" "Existe pero error al parsear JSON"
+    }
+} elseif (Test-Path $envTemplate) {
+    Copy-Item $envTemplate $envJson
+    Add-Check "env.json" "FAIL" "No existia — creado desde plantilla. Rellena $envJson con tus credenciales reales."
+} else {
+    Add-Check "env.json" "FAIL" "No existe env.json ni env.template.json en $pluginRoot"
+}
+
 # Check 1: XMLConfig.xml
 $xmlPath = Join-Path $workspace "docs\XMLConfig.xml"
 if (Test-Path $xmlPath) {
