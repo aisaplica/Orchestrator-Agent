@@ -1,8 +1,8 @@
 ---
 title: Orchestrator Skill Full — Guía de instalación y uso
 tags: [plugin, claude-code, ia, scacsweb, orchestrator]
-version: v1.5.0
-fecha: 2026-08-06
+version: v1.6.0
+fecha: 2026-08-07
 autor: david.gandoy@ubimia.com
 ---
 
@@ -26,6 +26,7 @@ El plugin extiende Claude Code con **41 comandos de barra** (`/orchestrator-*`) 
 | Sin acceso a SVN | Lee diff, log y estado SVN/Git |
 | Sin compilador | Invoca MSBuild y valida errores |
 | Sin modelo BD | Compara modelo JSON local vs esquema real |
+| Contexto BBDD en skill externo | Contexto BBDD integrado en el plugin (`env.json`) |
 
 ---
 
@@ -75,15 +76,35 @@ El directorio del plugin suele estar en:
 C:\Users\<tu-usuario>\.claude\plugins\cache\orchestrator-skill-full\
 ```
 
-### Paso 3 — Verificar la instalación
+### Paso 3 — Configurar credenciales (`env.json`)
+
+El plugin incluye un archivo `env.template.json` con la estructura de configuración de entorno. Debes crear tu propio `env.json` (ignorado por Git, nunca se sube) con tus credenciales reales:
+
+```powershell
+cd <directorio-del-plugin-instalado>
+Copy-Item env.template.json env.json
+```
+
+Abre `env.json` y rellena los valores marcados con `<COMPLETAR>`:
+
+- **`herramientas.mantis`** — URL y API key de MantisBT corporativo
+- **`herramientas.svn`** — URL y credenciales del repositorio SVN
+- **`credenciales_bbdd`** — usuarios y passwords por proyecto (Ingenieros, bancamarch, etc.)
+- **`entornos`** — connection strings completas por proyecto y entorno (DEV/PRE/PRO)
+- **`contexto_personal`** — tu nombre, rol y equipo
+
+> **Nota:** Si no tienes `env.json`, el agente lo creará automáticamente desde la plantilla la primera vez que uses un comando de base de datos, y te pedirá que lo rellenes antes de continuar.
+
+### Paso 4 — Verificar la instalación
 
 En Claude Code, escribe:
 
 ```
-/orchestrator-historial
+/orchestrator-validar-entorno
 ```
 
-Si el plugin está activo, el agente responderá con el historial SVN/Git del workspace actual.  
+El agente verificará: entorno dotnet/SVN/Git, rutas AIS, modelo BD y — desde esta versión — también el estado de `env.json` (si falta o tiene placeholders sin rellenar, lo indicará en el informe).
+
 El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer uso.
 
 ---
@@ -178,6 +199,48 @@ El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer u
 | `/orchestrator-idiomas` | Detecta mezcla de idiomas en nombres de variables, métodos y clases |
 | `/orchestrator-agent` | Punto de entrada genérico para tareas no cubiertas por comandos específicos |
 | `/orchestrator-help` | Muestra esta ayuda como página HTML navegable |
+
+---
+
+## Configuración de entorno (`env.json`)
+
+El plugin gestiona el contexto de base de datos y herramientas de forma **autónoma**, sin depender de skills externos.
+
+### Estructura de `env.json`
+
+```
+<directorio-del-plugin>/
+├── env.json              ← TU configuración local (gitignored, nunca se sube)
+├── env.template.json     ← Plantilla vacía (incluida en el repositorio)
+└── projects/
+    ├── Ingenieros/
+    │   ├── config.json   ← Metadatos del proyecto (motor, host, TNS alias...)
+    │   └── schema.md     ← Esquema completo de la BD (gitignored por tamaño)
+    └── bancamarch/
+        ├── config.json
+        └── schema.md
+```
+
+### Secciones principales de `env.json`
+
+| Sección | Contenido |
+|---|---|
+| `herramientas.mantis` | URL, usuario y API key de MantisBT |
+| `herramientas.svn` | URL y credenciales del repositorio SVN |
+| `herramientas.correo` | SMTP para ejemplos de envío desde C# |
+| `credenciales_bbdd` | Usuarios y passwords por proyecto y entorno |
+| `entornos` | Connection strings Oracle/SQL Server por proyecto (DEV/PRE/PRO) |
+| `contexto_personal` | Nombre, rol, empresa y equipo del desarrollador |
+
+### Comportamiento si `env.json` no existe
+
+El agente detecta la ausencia automáticamente:
+
+1. Copia `env.template.json` → `env.json`
+2. Informa al usuario con la ruta del archivo creado
+3. **Se detiene** hasta que el usuario confirme que ha rellenado las credenciales
+
+El comando `/orchestrator-validar-entorno` también verifica el estado de `env.json` y reporta si quedan placeholders `<COMPLETAR>` sin rellenar.
 
 ---
 
@@ -280,6 +343,12 @@ Los comandos de análisis, revisión y historial son agnósticos. Los comandos d
 **¿El plugin accede a Internet?**  
 No. Todo corre en local. El único acceso de red es a la BD del proyecto (si está en un servidor) y a MantisBT (si se usan los comandos `/orchestrator-mantis`).
 
+**¿Debo tener la skill `project-db-env` instalada?**  
+No. Desde v1.6.0 el contexto de base de datos está integrado directamente en el plugin (`env.json`, `projects/*/config.json` y `projects/*/schema.md`). Si tenías la skill externa instalada puedes desinstalarla.
+
+**¿`env.json` se sube al repositorio?**  
+No. Está en `.gitignore`. Solo `env.template.json` (con placeholders) se versiona. Cada desarrollador crea su propio `env.json` local con sus credenciales reales.
+
 **¿Cómo actualizo el plugin?**  
 ```
 /plugin update orchestrator-skill-full
@@ -292,4 +361,4 @@ O manualmente con `git pull` en el directorio del plugin.
 
 - **Repositorio:** https://github.com/aisaplica/Orchestrator-Agent.git  
 - **Incidencias y sugerencias:** abrir issue en el repositorio o contactar con el equipo de IA.
-- **Versión actual:** v1.5.0 (2026-08-06)
+- **Versión actual:** v1.6.0 (2026-08-07)
