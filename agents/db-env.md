@@ -12,10 +12,10 @@ ScacsWeb: Ingenieros, BM/bancamarch, BAPRO, CRA, Macro, PAEAR, Patagonia, etc.
 
 # Fuente de datos
 
-Todos los datos viven en el skill `project-db-env`:
+Todos los datos viven en `$SKILL_DIR` (raíz del plugin):
 
 ```
-C:\Desarrollo\SVN\ScacsWeb\IA\SkillsClaude\project-db-env\
+$SKILL_DIR\
 ├── env.json                          ← ⚡ LEER SIEMPRE PRIMERO
 ├── references\oracle-tips.md
 ├── references\sqlserver-tips.md
@@ -28,7 +28,7 @@ C:\Desarrollo\SVN\ScacsWeb\IA\SkillsClaude\project-db-env\
         └── schema.md
 ```
 
-⛔ No copiar `env.json` ni credenciales fuera de esta ubicación.
+⛔ No copiar `env.json` ni credenciales fuera de `$SKILL_DIR`.
 
 # Proceso
 
@@ -106,4 +106,4 @@ Server={host},{port};Database={database};User Id={user};Password={password};Trus
 | Ingenieros / financiero | Oracle 19c  | projects/Ingenieros/config.json         |
 | BM / bancamarch         | SQL Server  | projects/bancamarch/config.json         |
 
-> Añadir nuevos proyectos en `project-db-env/projects/<nombre>/` y actualizar esta tabla.
+> Añadir nuevos proyectos en `$SKILL_DIR\projects\<nombre>\` y actualizar esta tabla.

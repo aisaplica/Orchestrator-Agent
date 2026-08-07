@@ -1,0 +1,19 @@
+{
+  "project": "Ingenieros",
+  "aliases": ["financiero", "FinApp", "fin"],
+  "databases": [
+    {
+      "name": "Ingenieros",
+      "type": "oracle",
+      "version": "19c",
+      "host": "aisbddev01.cloud.ais-int.net",
+      "port": 1521,
+      "service_name": "PDB1.sub11121037231.opexvcn.oraclevcn.com",
+      "tns_alias": "INGE_TEST",
+      "user": "INGE_TEST",
+      "schema": "INGE_TEST",
+      "web_config_key": "Ingenieros",
+      "notes": "BBDD principal. Esquema FIN_OWNER, usuario FIN_USER con permisos de lectura/escritura."
+    }    
+  ]
+}

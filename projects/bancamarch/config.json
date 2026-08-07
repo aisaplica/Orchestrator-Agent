@@ -1,0 +1,17 @@
+{
+  "project": "bancamarch",
+  "aliases": ["BM", "bancamarch"],
+  "databases": [
+    {
+      "name": "alabama",
+      "type": "sqlserver",
+      "host": "aisbddev02.cloud.ais-int.net",
+      "port": 1433,
+      "database": "alabama",
+      "schema": "dbo",
+      "user": "alabama",
+      "web_config_key": "bancamarch",
+      "notes": "Entorno único (sin DEV/PRE/PRO). 513 tablas activas documentadas en schema.md (51 excluidas por ser backup/tmp/old/test/fechadas). Sin FKs declaradas a nivel de motor."
+    }
+  ]
+}
