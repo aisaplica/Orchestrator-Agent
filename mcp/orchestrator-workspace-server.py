@@ -162,6 +162,318 @@ def _check_git_cli() -> bool:
     return _git_cli
 
 
+# ---------------------------------------------------------------------------
+# Helpers BD: escritura canónica model.json + queries Oracle/SQL Server
+# ---------------------------------------------------------------------------
+
+def _write_model_json(model_path: Path, model: dict) -> None:
+    """Escritura canónica: UTF-8 con BOM, CRLF, indent=2, ensure_ascii=True.
+    Invalida ambas capas de caché para que la próxima lectura traiga los datos frescos."""
+    text = json.dumps(model, indent=2, separators=(",", ": "), ensure_ascii=True)
+    text = text.replace("\n", "\r\n")
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    model_path.write_bytes(b"\xef\xbb\xbf" + text.encode("utf-8"))
+    _model_cache.pop(str(model_path), None)
+    cache_key  = hashlib.md5(str(model_path).encode()).hexdigest()
+    cache_file = CACHE_DIR / f"{cache_key}.json"
+    try:
+        cache_file.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def _run_oracle_sql(datasource: str, user: str, password: str, schema: str, sql: str) -> list[str] | str:
+    """Ejecuta SQL en Oracle via sqlplus. Devuelve lista de líneas de salida o string de error."""
+    if password:
+        connect_line = f"CONNECT {user}/{password}@{datasource}\n"
+        sqlplus_conn = "/nolog"
+    else:
+        connect_line = ""
+        sqlplus_conn = f"{user}/@{datasource}"
+    schema_line = f"ALTER SESSION SET CURRENT_SCHEMA = {schema};\n" if schema and schema.upper() != user.upper() else ""
+    script = f"SET PAGESIZE 0 FEEDBACK OFF HEADING OFF LINESIZE 2000 TRIMSPOOL ON\n{connect_line}{schema_line}{sql}\nEXIT;\n"
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False, encoding="utf-8")
+    tmp.write(script); tmp.close()
+    try:
+        r = subprocess.run(["sqlplus", "-S", sqlplus_conn, f"@{tmp.name}"],
+                           capture_output=True, text=True, encoding="utf-8", timeout=120)
+    finally:
+        os.unlink(tmp.name)
+    if r.returncode != 0 and not r.stdout.strip():
+        return f"sqlplus error: {r.stderr.strip() or 'sin salida'}"
+    # Filtrar líneas de error ORA- y líneas vacías
+    return [l for l in r.stdout.splitlines() if l.strip() and not l.lstrip().startswith("ORA-")]
+
+
+def _query_oracle_schema(datasource: str, user: str, password: str, schema: str) -> tuple:
+    """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error."""
+    col_sql = (
+        f"SELECT c.TABLE_NAME||'|'||c.COLUMN_NAME||'|'||c.DATA_TYPE||'|'"
+        f"||NVL(TO_CHAR(c.CHAR_LENGTH),'0')||'|'||c.NULLABLE "
+        f"FROM ALL_TAB_COLUMNS c WHERE c.OWNER='{schema}' ORDER BY c.TABLE_NAME,c.COLUMN_ID;"
+    )
+    pk_sql = (
+        f"SELECT cc.TABLE_NAME||'|'||cc.COLUMN_NAME "
+        f"FROM ALL_CONSTRAINTS con "
+        f"JOIN ALL_CONS_COLUMNS cc ON con.CONSTRAINT_NAME=cc.CONSTRAINT_NAME AND con.OWNER=cc.OWNER "
+        f"WHERE con.CONSTRAINT_TYPE='P' AND con.OWNER='{schema}' ORDER BY cc.TABLE_NAME,cc.POSITION;"
+    )
+    raw_cols = _run_oracle_sql(datasource, user, password, schema, col_sql)
+    if isinstance(raw_cols, str):
+        return raw_cols, []
+    raw_pks = _run_oracle_sql(datasource, user, password, schema, pk_sql)
+    if isinstance(raw_pks, str):
+        raw_pks = []  # fallo de PK no es fatal — columnas pk quedarán False
+
+    cols = []
+    for line in raw_cols:
+        p = line.split("|")
+        if len(p) >= 5:
+            cols.append({"table_name": p[0].strip(), "column_name": p[1].strip(),
+                         "data_type": p[2].strip(), "length": p[3].strip(), "nullable": p[4].strip()})
+    pks = []
+    for line in raw_pks:
+        p = line.split("|")
+        if len(p) >= 2:
+            pks.append({"table_name": p[0].strip(), "column_name": p[1].strip()})
+    return cols, pks
+
+
+def _query_sqlserver_schema(datasource: str, schema: str) -> tuple:
+    """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error."""
+    db_schema = schema or "dbo"
+    col_sql = (
+        f"SELECT TABLE_NAME+'|'+COLUMN_NAME+'|'+DATA_TYPE+'|'"
+        f"+ISNULL(CAST(CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10)),'0')+'|'+IS_NULLABLE "
+        f"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='{db_schema}' "
+        f"ORDER BY TABLE_NAME,ORDINAL_POSITION"
+    )
+    pk_sql = (
+        f"SELECT t.TABLE_NAME+'|'+c.COLUMN_NAME "
+        f"FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t "
+        f"JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE c ON t.CONSTRAINT_NAME=c.CONSTRAINT_NAME "
+        f"WHERE t.CONSTRAINT_TYPE='PRIMARY KEY' AND t.TABLE_SCHEMA='{db_schema}' "
+        f"ORDER BY t.TABLE_NAME,c.ORDINAL_POSITION"
+    )
+    def _sqlcmd(sql: str):
+        # datasource puede ser "Server=host;Database=db;..." o solo "host\instance"
+        # extraer Server y Database si viene como connection string
+        server, database = datasource, db_schema
+        for part in datasource.split(";"):
+            k, _, v = part.partition("=")
+            k = k.strip().lower()
+            if k in ("server", "data source"):
+                server = v.strip()
+            elif k in ("database", "initial catalog"):
+                database = v.strip()
+        r = subprocess.run(
+            ["sqlcmd", "-S", server, "-d", database, "-Q", sql, "-h", "-1", "-W", "-s", "|"],
+            capture_output=True, text=True, encoding="utf-8", timeout=120
+        )
+        if r.returncode != 0 and not r.stdout.strip():
+            return f"sqlcmd error: {r.stderr.strip() or 'sin salida'}"
+        return [l for l in r.stdout.splitlines() if l.strip() and not l.startswith("-")]
+
+    raw_cols = _sqlcmd(col_sql)
+    if isinstance(raw_cols, str):
+        return raw_cols, []
+    raw_pks = _sqlcmd(pk_sql)
+    if isinstance(raw_pks, str):
+        raw_pks = []
+
+    cols = []
+    for line in raw_cols:
+        p = line.split("|")
+        if len(p) >= 5:
+            cols.append({"table_name": p[0].strip(), "column_name": p[1].strip(),
+                         "data_type": p[2].strip(), "length": p[3].strip(), "nullable": p[4].strip()})
+    pks = []
+    for line in raw_pks:
+        p = line.split("|")
+        if len(p) >= 2:
+            pks.append({"table_name": p[0].strip(), "column_name": p[1].strip()})
+    return cols, pks
+
+
+def _sync_from_db_impl(workspace: str) -> dict:
+    from datetime import datetime
+    config = _get_config(workspace)
+    if "error" in config:
+        return config
+    motor      = config.get("motor", "")
+    datasource = config.get("datasource", "")
+    schema     = config.get("schema", "")
+    user       = config.get("user", "")
+    model_path = Path(config.get("model_path", ""))
+    password   = _get_db_password(workspace)
+
+    if not model_path.name:
+        return {"error": "model_path no resuelto desde XMLConfig.xml"}
+
+    # Query DB
+    if motor == "ORACLE":
+        col_rows, pk_rows = _query_oracle_schema(datasource, user, password, schema)
+    elif motor == "SQLSERVER":
+        col_rows, pk_rows = _query_sqlserver_schema(datasource, schema)
+    else:
+        return {"error": f"Motor no soportado: {motor}"}
+
+    if isinstance(col_rows, str):
+        return {"error": col_rows, "motor": motor}
+
+    # Construir dict de tablas visibles desde BD
+    db_tables: dict[str, dict] = {}
+    for row in col_rows:
+        tname  = row["table_name"].upper()
+        colname = row["column_name"].upper()
+        db_tables.setdefault(tname, {})
+        try:
+            length = int(row["length"]) if row["length"] and row["length"] != "0" else 0
+        except ValueError:
+            length = 0
+        db_tables[tname][colname] = {
+            "type":     row["data_type"],
+            "length":   length,
+            "nullable": row["nullable"].upper() in ("Y", "YES"),
+            "pk":       False,
+        }
+    # Marcar PKs
+    pk_set: set[tuple] = {(r["table_name"].upper(), r["column_name"].upper()) for r in pk_rows}
+    for tname, colname in pk_set:
+        if tname in db_tables and colname in db_tables[tname]:
+            db_tables[tname][colname]["pk"] = True
+
+    # Cargar modelo actual (o crear vacío)
+    model = _load_model(model_path) or {"tables": {}}
+    current_tables: dict = model.get("tables") or {}
+    new_tables: dict = {}
+    stats = {"synced": 0, "hidden": 0, "new": 0}
+
+    # Tablas en modelo actual
+    for tname, tdef in current_tables.items():
+        tname_up = tname.upper()
+        if tname_up in db_tables:
+            # Tabla visible → actualizar columnas, marcar visible
+            updated = dict(tdef)
+            updated["columns"] = db_tables[tname_up]
+            updated["visible"] = True
+            new_tables[tname_up] = updated
+            stats["synced"] += 1
+        else:
+            # Tabla no visible por permisos → preservar TODO, marcar visible:false
+            preserved = dict(tdef)
+            preserved["visible"] = False
+            new_tables[tname_up] = preserved
+            stats["hidden"] += 1
+
+    # Tablas nuevas (en BD pero no en modelo)
+    for tname, cols in db_tables.items():
+        if tname not in new_tables:
+            new_tables[tname] = {
+                "description": "",
+                "columns":     cols,
+                "relations":   [],
+                "indexes":     [],
+                "visible":     True,
+            }
+            stats["new"] += 1
+
+    model["tables"]     = new_tables
+    model["updated_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    _write_model_json(model_path, model)
+
+    result = {
+        "success":        True,
+        "motor":          motor,
+        "schema":         schema,
+        "tables_synced":  stats["synced"],
+        "tables_new":     stats["new"],
+        "tables_hidden":  stats["hidden"],
+        "model_path":     str(model_path),
+    }
+    if stats["hidden"] > 0:
+        result["warning"] = (
+            f"{stats['hidden']} tabla(s) no visibles por permisos (ORA-00942 ambiguo) — "
+            "preservadas con visible:false. Conceder GRANTs y re-sincronizar para recuperarlas."
+        )
+    return result
+
+
+def _sync_indexes_impl(workspace: str) -> dict:
+    """Oracle only. Sincroniza ALL_INDEXES al modelo, saltando tablas con visible:false."""
+    config = _get_config(workspace)
+    if "error" in config:
+        return config
+    motor      = config.get("motor", "")
+    datasource = config.get("datasource", "")
+    schema     = config.get("schema", "")
+    user       = config.get("user", "")
+    model_path = Path(config.get("model_path", ""))
+    password   = _get_db_password(workspace)
+
+    if motor != "ORACLE":
+        return {"error": f"sync_indexes solo soporta Oracle (motor={motor})"}
+
+    model = _load_model(model_path)
+    if model is None:
+        return {"error": f"Modelo BD no encontrado: {model_path}. Ejecutar sync_from_db primero."}
+
+    # Solo las tablas visibles — las hidden se conservan intactas
+    visible_tables = {
+        tname.upper()
+        for tname, tdef in (model.get("tables") or {}).items()
+        if tdef.get("visible", True) is not False
+    }
+    if not visible_tables:
+        return {"success": True, "index_count": 0, "table_count": 0,
+                "note": "Todas las tablas son visible:false — nada que sincronizar."}
+
+    idx_sql = (
+        f"SELECT i.TABLE_NAME||'|'||i.INDEX_NAME||'|'||i.UNIQUENESS||'|'||ic.COLUMN_NAME||'|'||ic.COLUMN_POSITION "
+        f"FROM ALL_INDEXES i "
+        f"JOIN ALL_IND_COLUMNS ic ON i.INDEX_NAME=ic.INDEX_NAME AND i.OWNER=ic.INDEX_OWNER "
+        f"WHERE i.OWNER='{schema}' AND i.INDEX_TYPE='NORMAL' "
+        f"ORDER BY i.TABLE_NAME,i.INDEX_NAME,ic.COLUMN_POSITION;"
+    )
+    raw = _run_oracle_sql(datasource, user, password, schema, idx_sql)
+    if isinstance(raw, str):
+        return {"error": raw}
+
+    # Agrupar por tabla → índice → columnas
+    idx_by_table: dict[str, dict] = {}
+    for line in raw:
+        p = line.split("|")
+        if len(p) < 5:
+            continue
+        tname, iname, uniq, colname, pos = (x.strip() for x in p[:5])
+        if tname.upper() not in visible_tables:
+            continue
+        idx_by_table.setdefault(tname.upper(), {})
+        idx_by_table[tname.upper()].setdefault(iname, {"name": iname, "unique": uniq == "UNIQUE",
+                                                         "source": "db", "columns": []})
+        idx_by_table[tname.upper()][iname]["columns"].append(colname.upper())
+
+    tables = model.get("tables") or {}
+    idx_total = 0
+    for tname_up, tdef in tables.items():
+        if tdef.get("visible", True) is False:
+            continue  # no tocar tablas ocultas
+        existing = {i["name"]: i for i in (tdef.get("indexes") or []) if i.get("source") == "manual"}
+        db_idxs  = [{"name": i["name"], "unique": i["unique"], "columns": i["columns"], "source": "db"}
+                    for i in idx_by_table.get(tname_up, {}).values()]
+        tdef["indexes"] = list(existing.values()) + db_idxs
+        idx_total += len(db_idxs)
+
+    model["tables"] = tables
+    _write_model_json(model_path, model)
+    return {
+        "success":     True,
+        "index_count": idx_total,
+        "table_count": len(idx_by_table),
+        "hidden_skip": len([t for t, d in tables.items() if d.get("visible") is False]),
+    }
+
+
 @mcp.tool(description="Parsea .sln → scope_dirs, tipo (Batch/Online), workspace. Usar al inicio de cada tarea (paso 2b). Resultado cacheado en proceso.")
 def get_scope(sln_path: str) -> str:
     return json.dumps(_get_scope(sln_path), ensure_ascii=False, separators=(",",":"))
@@ -508,16 +820,24 @@ def export_dmd(workspace: str) -> str:
     return json.dumps(_run_ps("export-dmd.ps1", workspace, "-Proyecto", _proyecto(workspace)), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Sincroniza tablas y columnas del modelo BD desde el esquema real de la BD. No toca relaciones. Devuelve nº tablas sincronizadas.")
+@mcp.tool(description=(
+    "Sincroniza tablas y columnas del modelo BD desde el esquema real. "
+    "Tablas no visibles por permisos Oracle se marcan visible:false y se PRESERVAN (no se borran). "
+    "Tablas nuevas en BD se añaden. No toca relaciones ni índices."
+))
 def sync_from_db(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("sync-from-db.ps1", workspace, _proyecto(workspace)), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_sync_from_db_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Sincroniza índices Oracle (ALL_INDEXES) al modelo BD JSON. Reemplaza source='db', preserva source='manual'. Solo Oracle. Devuelve index_count y table_count.")
+@mcp.tool(description=(
+    "Sincroniza índices Oracle (ALL_INDEXES) al modelo BD JSON. "
+    "Reemplaza source='db', preserva source='manual'. Solo Oracle. "
+    "Salta tablas con visible:false — sus índices se conservan tal cual."
+))
 def sync_indexes(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("sync-indexes.ps1", workspace, _proyecto(workspace)), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_sync_indexes_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Infiere relaciones entre tablas analizando código DALC (JOINs, WHERE cruzados). Actualiza el modelo JSON. sln_path opcional para limitar scope.")
@@ -568,6 +888,7 @@ def get_table_schema(workspace: str, tables: str) -> str:
             col_list = list(cols)
         result[tname] = {
             "description": tdef.get("description", ""),
+            "visible": tdef.get("visible", True),
             "columns": col_list,
             "relations": tdef.get("relations", []),
             "indexes": tdef.get("indexes", []),
