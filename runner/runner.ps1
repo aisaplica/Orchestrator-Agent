@@ -39,21 +39,50 @@ if (-not $content) {
             if ($transcriptPath -and (Test-Path $transcriptPath)) {
                 Write-Host "Mode: Stop hook (transcript)"
                 $lastText = $null
-                Get-Content $transcriptPath -Encoding UTF8 | ForEach-Object {
-                    $line = $_.Trim()
-                    if (-not $line) { return }
+
+                # Camino rápido: cola del transcript — evita leer miles de líneas en sesiones largas.
+                # Scan hacia atrás para encontrar el último mensaje assistant.
+                # Si la cola no contiene ningún assistant, cae al fallback de lectura completa.
+                $tail = Get-Content $transcriptPath -Encoding UTF8 -Tail 400
+                [Array]::Reverse($tail)
+                $foundInTail = $false
+                foreach ($line in $tail) {
+                    $line = $line.Trim()
+                    if (-not $line) { continue }
                     try {
                         $msg = $line | ConvertFrom-Json
                         if ($msg.role -eq "assistant") {
                             if ($msg.content -is [string]) { $lastText = $msg.content }
                             elseif ($msg.content -is [array]) {
                                 foreach ($block in $msg.content) {
-                                    if ($block.type -eq "text" -and $block.text) { $lastText = $block.text }
+                                    if ($block.type -eq "text" -and $block.text) { $lastText = $block.text; break }
                                 }
                             }
+                            $foundInTail = $true
+                            break
                         }
                     } catch {}
                 }
+
+                # Fallback: lectura completa si la cola de 400 líneas no tenía ningún assistant
+                if (-not $foundInTail) {
+                    Get-Content $transcriptPath -Encoding UTF8 | ForEach-Object {
+                        $line = $_.Trim()
+                        if (-not $line) { return }
+                        try {
+                            $msg = $line | ConvertFrom-Json
+                            if ($msg.role -eq "assistant") {
+                                if ($msg.content -is [string]) { $lastText = $msg.content }
+                                elseif ($msg.content -is [array]) {
+                                    foreach ($block in $msg.content) {
+                                        if ($block.type -eq "text" -and $block.text) { $lastText = $block.text }
+                                    }
+                                }
+                            }
+                        } catch {}
+                    }
+                }
+
                 $content = $lastText
             }
         }
