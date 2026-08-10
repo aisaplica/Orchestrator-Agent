@@ -185,12 +185,16 @@ def get_db_config(workspace: str) -> str:
 
 @mcp.tool(description="Localiza clase/método/propiedad/interfaz/enum en scope_dirs. symbol_type: class|method|property|interface|enum|any. max_results limita matches (default 50).")
 def find_symbol(symbol: str, scope_dirs: str, symbol_type: str = "any", max_results: int = 50) -> str:
-    result = _run_ps("find-symbol.ps1", symbol, scope_dirs, "-Type", symbol_type)
-    if isinstance(result.get("matches"), list) and len(result["matches"]) > max_results:
-        result["matches_total"] = len(result["matches"])
-        result["matches"] = result["matches"][:max_results]
-        result["matches_truncated"] = True
-    return json.dumps(result, ensure_ascii=False, separators=(",",":"))
+    raw = _run_ps("find-symbol.ps1", "-ScopeDirs", scope_dirs, "-Symbols", symbol, "-Type", symbol_type)
+    if "error" in raw:
+        return json.dumps(raw, ensure_ascii=False, separators=(",",":"))
+    entry = (raw.get("symbols") or {}).get(symbol, {"found": False, "count": 0, "matches": []})
+    matches = entry.get("matches") or []
+    if len(matches) > max_results:
+        entry["matches_total"] = len(matches)
+        entry["matches"] = matches[:max_results]
+        entry["matches_truncated"] = True
+    return json.dumps(entry, ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Build real con dotnet → errors[], warnings[], success. no_restore=True omite NuGet restore. max_errors limita lista de errores en contexto (default 20).")
@@ -581,13 +585,18 @@ def get_table_schema(workspace: str, tables: str) -> str:
 @mcp.tool(description="Localiza N símbolos en una sola llamada (equivale a N×find_symbol). symbols = coma-separados. Usar en impact analysis y refactor para evitar N round-trips.")
 def batch_find_symbols(symbols: str, scope_dirs: str, symbol_type: str = "any", max_per_symbol: int = 20) -> str:
     symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    # Una sola llamada al hook — el truncado max_per_symbol se aplica en Python
+    raw = _run_ps("find-symbol.ps1", "-ScopeDirs", scope_dirs, "-Symbols", symbols, "-Type", symbol_type)
+    if "error" in raw:
+        return json.dumps(raw, ensure_ascii=False, separators=(",",":"))
+    sym_data = raw.get("symbols") or {}
     out: dict = {}
     for sym in symbol_list:
-        r = _run_ps("find-symbol.ps1", sym, scope_dirs, "-Type", symbol_type)
-        matches = r.get("matches", [])
+        entry = sym_data.get(sym, {"found": False, "count": 0, "matches": []})
+        matches = entry.get("matches") or []
         if len(matches) > max_per_symbol:
             matches = matches[:max_per_symbol]
-        out[sym] = {"found": len(matches) > 0, "count": len(matches), "matches": matches}
+        out[sym] = {"found": entry.get("found", False), "count": entry.get("count", 0), "matches": matches}
     return json.dumps({"symbols": out, "total_symbols": len(symbol_list)}, ensure_ascii=False, separators=(",",":"))
 
 
