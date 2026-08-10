@@ -73,8 +73,7 @@ def _load_model(model_path: Path) -> dict | None:
             pass
 
     # 3. Leer model.json original y escribir cache
-    # utf-8-sig: los hooks PowerShell (PS5.1) escriben model.json con Set-Content -Encoding
-    # UTF8, que SIEMPRE antepone BOM — utf-8-sig lo tolera (y funciona igual sin BOM).
+    # utf-8-sig: _write_model_json escribe BOM (b'\xef\xbb\xbf') — utf-8-sig lo consume.
     with open(model_path, encoding="utf-8-sig") as f:
         model = json.load(f)
     _model_cache[str(model_path)] = (mtime, model)
@@ -205,18 +204,31 @@ def _run_oracle_sql(datasource: str, user: str, password: str, schema: str, sql:
     return [l for l in r.stdout.splitlines() if l.strip() and not l.lstrip().startswith("ORA-")]
 
 
-def _query_oracle_schema(datasource: str, user: str, password: str, schema: str) -> tuple:
-    """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error."""
+def _in_clause_oracle(names: list[str]) -> str:
+    return "IN (" + ",".join(f"'{n}'" for n in names) + ")"
+
+def _in_clause_sqlserver(names: list[str]) -> str:
+    return "IN (" + ",".join(f"'{n}'" for n in names) + ")"
+
+
+def _query_oracle_schema(
+    datasource: str, user: str, password: str, schema: str,
+    table_filter: list[str] | None = None,
+) -> tuple:
+    """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error.
+    table_filter limita la consulta a una lista de tablas (útil en sync_model_tables)."""
+    tbl_where = f" AND c.TABLE_NAME {_in_clause_oracle(table_filter)}" if table_filter else ""
     col_sql = (
         f"SELECT c.TABLE_NAME||'|'||c.COLUMN_NAME||'|'||c.DATA_TYPE||'|'"
         f"||NVL(TO_CHAR(c.CHAR_LENGTH),'0')||'|'||c.NULLABLE "
-        f"FROM ALL_TAB_COLUMNS c WHERE c.OWNER='{schema}' ORDER BY c.TABLE_NAME,c.COLUMN_ID;"
+        f"FROM ALL_TAB_COLUMNS c WHERE c.OWNER='{schema}'{tbl_where} ORDER BY c.TABLE_NAME,c.COLUMN_ID;"
     )
+    pk_where = f" AND cc.TABLE_NAME {_in_clause_oracle(table_filter)}" if table_filter else ""
     pk_sql = (
         f"SELECT cc.TABLE_NAME||'|'||cc.COLUMN_NAME "
         f"FROM ALL_CONSTRAINTS con "
         f"JOIN ALL_CONS_COLUMNS cc ON con.CONSTRAINT_NAME=cc.CONSTRAINT_NAME AND con.OWNER=cc.OWNER "
-        f"WHERE con.CONSTRAINT_TYPE='P' AND con.OWNER='{schema}' ORDER BY cc.TABLE_NAME,cc.POSITION;"
+        f"WHERE con.CONSTRAINT_TYPE='P' AND con.OWNER='{schema}'{pk_where} ORDER BY cc.TABLE_NAME,cc.POSITION;"
     )
     raw_cols = _run_oracle_sql(datasource, user, password, schema, col_sql)
     if isinstance(raw_cols, str):
@@ -225,39 +237,43 @@ def _query_oracle_schema(datasource: str, user: str, password: str, schema: str)
     if isinstance(raw_pks, str):
         raw_pks = []  # fallo de PK no es fatal — columnas pk quedarán False
 
-    cols = []
-    for line in raw_cols:
-        p = line.split("|")
-        if len(p) >= 5:
-            cols.append({"table_name": p[0].strip(), "column_name": p[1].strip(),
-                         "data_type": p[2].strip(), "length": p[3].strip(), "nullable": p[4].strip()})
-    pks = []
-    for line in raw_pks:
-        p = line.split("|")
-        if len(p) >= 2:
-            pks.append({"table_name": p[0].strip(), "column_name": p[1].strip()})
+    def _parse(lines, min_parts):
+        out = []
+        for line in lines:
+            p = line.split("|")
+            if len(p) >= min_parts:
+                out.append([x.strip() for x in p])
+        return out
+
+    cols = [{"table_name": p[0], "column_name": p[1], "data_type": p[2],
+             "length": p[3], "nullable": p[4]} for p in _parse(raw_cols, 5)]
+    pks  = [{"table_name": p[0], "column_name": p[1]} for p in _parse(raw_pks, 2)]
     return cols, pks
 
 
-def _query_sqlserver_schema(datasource: str, schema: str) -> tuple:
+def _query_sqlserver_schema(
+    datasource: str, schema: str,
+    table_filter: list[str] | None = None,
+) -> tuple:
     """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error."""
     db_schema = schema or "dbo"
+    tbl_where = f" AND TABLE_NAME {_in_clause_sqlserver(table_filter)}" if table_filter else ""
     col_sql = (
         f"SELECT TABLE_NAME+'|'+COLUMN_NAME+'|'+DATA_TYPE+'|'"
         f"+ISNULL(CAST(CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10)),'0')+'|'+IS_NULLABLE "
-        f"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='{db_schema}' "
+        f"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='{db_schema}'{tbl_where} "
         f"ORDER BY TABLE_NAME,ORDINAL_POSITION"
     )
+    pk_tbl_where = f" AND t.TABLE_NAME {_in_clause_sqlserver(table_filter)}" if table_filter else ""
     pk_sql = (
         f"SELECT t.TABLE_NAME+'|'+c.COLUMN_NAME "
         f"FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t "
         f"JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE c ON t.CONSTRAINT_NAME=c.CONSTRAINT_NAME "
-        f"WHERE t.CONSTRAINT_TYPE='PRIMARY KEY' AND t.TABLE_SCHEMA='{db_schema}' "
+        f"WHERE t.CONSTRAINT_TYPE='PRIMARY KEY' AND t.TABLE_SCHEMA='{db_schema}'{pk_tbl_where} "
         f"ORDER BY t.TABLE_NAME,c.ORDINAL_POSITION"
     )
+
     def _sqlcmd(sql: str):
-        # datasource puede ser "Server=host;Database=db;..." o solo "host\instance"
-        # extraer Server y Database si viene como connection string
         server, database = datasource, db_schema
         for part in datasource.split(";"):
             k, _, v = part.partition("=")
@@ -281,18 +297,42 @@ def _query_sqlserver_schema(datasource: str, schema: str) -> tuple:
     if isinstance(raw_pks, str):
         raw_pks = []
 
-    cols = []
-    for line in raw_cols:
-        p = line.split("|")
-        if len(p) >= 5:
-            cols.append({"table_name": p[0].strip(), "column_name": p[1].strip(),
-                         "data_type": p[2].strip(), "length": p[3].strip(), "nullable": p[4].strip()})
-    pks = []
-    for line in raw_pks:
-        p = line.split("|")
-        if len(p) >= 2:
-            pks.append({"table_name": p[0].strip(), "column_name": p[1].strip()})
+    def _parse(lines, min_parts):
+        out = []
+        for line in lines:
+            p = line.split("|")
+            if len(p) >= min_parts:
+                out.append([x.strip() for x in p])
+        return out
+
+    cols = [{"table_name": p[0], "column_name": p[1], "data_type": p[2],
+             "length": p[3], "nullable": p[4]} for p in _parse(raw_cols, 5)]
+    pks  = [{"table_name": p[0], "column_name": p[1]} for p in _parse(raw_pks, 2)]
     return cols, pks
+
+
+def _build_table_dict(col_rows: list[dict], pk_rows: list[dict]) -> dict[str, dict]:
+    """Convierte col_rows + pk_rows al formato de columnas del modelo:
+    {TABLE_NAME: {COL_NAME: {type, length, nullable, pk}}}."""
+    pk_set: set[tuple] = {
+        (r["table_name"].upper(), r["column_name"].upper()) for r in pk_rows
+    }
+    db_tables: dict[str, dict] = {}
+    for row in col_rows:
+        tname   = row["table_name"].upper()
+        colname = row["column_name"].upper()
+        db_tables.setdefault(tname, {})
+        try:
+            length = int(row["length"]) if row["length"] and row["length"] != "0" else 0
+        except ValueError:
+            length = 0
+        db_tables[tname][colname] = {
+            "type":     row["data_type"],
+            "length":   length,
+            "nullable": row["nullable"].upper() in ("Y", "YES"),
+            "pk":       (tname, colname) in pk_set,
+        }
+    return db_tables
 
 
 def _sync_from_db_impl(workspace: str) -> dict:
@@ -310,7 +350,6 @@ def _sync_from_db_impl(workspace: str) -> dict:
     if not model_path.name:
         return {"error": "model_path no resuelto desde XMLConfig.xml"}
 
-    # Query DB
     if motor == "ORACLE":
         col_rows, pk_rows = _query_oracle_schema(datasource, user, password, schema)
     elif motor == "SQLSERVER":
@@ -321,39 +360,16 @@ def _sync_from_db_impl(workspace: str) -> dict:
     if isinstance(col_rows, str):
         return {"error": col_rows, "motor": motor}
 
-    # Construir dict de tablas visibles desde BD
-    db_tables: dict[str, dict] = {}
-    for row in col_rows:
-        tname  = row["table_name"].upper()
-        colname = row["column_name"].upper()
-        db_tables.setdefault(tname, {})
-        try:
-            length = int(row["length"]) if row["length"] and row["length"] != "0" else 0
-        except ValueError:
-            length = 0
-        db_tables[tname][colname] = {
-            "type":     row["data_type"],
-            "length":   length,
-            "nullable": row["nullable"].upper() in ("Y", "YES"),
-            "pk":       False,
-        }
-    # Marcar PKs
-    pk_set: set[tuple] = {(r["table_name"].upper(), r["column_name"].upper()) for r in pk_rows}
-    for tname, colname in pk_set:
-        if tname in db_tables and colname in db_tables[tname]:
-            db_tables[tname][colname]["pk"] = True
+    db_tables = _build_table_dict(col_rows, pk_rows)
 
-    # Cargar modelo actual (o crear vacío)
     model = _load_model(model_path) or {"tables": {}}
     current_tables: dict = model.get("tables") or {}
     new_tables: dict = {}
     stats = {"synced": 0, "hidden": 0, "new": 0}
 
-    # Tablas en modelo actual
     for tname, tdef in current_tables.items():
         tname_up = tname.upper()
         if tname_up in db_tables:
-            # Tabla visible → actualizar columnas, marcar visible
             updated = dict(tdef)
             updated["columns"] = db_tables[tname_up]
             updated["visible"] = True
@@ -366,7 +382,6 @@ def _sync_from_db_impl(workspace: str) -> dict:
             new_tables[tname_up] = preserved
             stats["hidden"] += 1
 
-    # Tablas nuevas (en BD pero no en modelo)
     for tname, cols in db_tables.items():
         if tname not in new_tables:
             new_tables[tname] = {
@@ -383,13 +398,13 @@ def _sync_from_db_impl(workspace: str) -> dict:
     _write_model_json(model_path, model)
 
     result = {
-        "success":        True,
-        "motor":          motor,
-        "schema":         schema,
-        "tables_synced":  stats["synced"],
-        "tables_new":     stats["new"],
-        "tables_hidden":  stats["hidden"],
-        "model_path":     str(model_path),
+        "success":       True,
+        "motor":         motor,
+        "schema":        schema,
+        "tables_synced": stats["synced"],
+        "tables_new":    stats["new"],
+        "tables_hidden": stats["hidden"],
+        "model_path":    str(model_path),
     }
     if stats["hidden"] > 0:
         result["warning"] = (
@@ -787,10 +802,52 @@ def security_scan(sln_path: str) -> str:
     return json.dumps(_run_ps("security-scan.ps1", sln_path), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Actualiza tablas específicas de model.json desde BD real. Llamar post-migración. tables = coma-separadas.")
+@mcp.tool(description=(
+    "Actualiza tablas específicas de model.json desde BD real. Llamar post-migración. "
+    "tables = coma-separadas. Escritura canónica (UTF-8 BOM, CRLF, indent=2)."
+))
 def sync_model_tables(workspace: str, tables: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("sync-model-tables.ps1", workspace, tables), ensure_ascii=False, separators=(",",":"))
+    config = _get_config(workspace)
+    if "error" in config:
+        return json.dumps(config, ensure_ascii=False, separators=(",",":"))
+    motor      = config.get("motor", "")
+    datasource = config.get("datasource", "")
+    schema     = config.get("schema", "")
+    user       = config.get("user", "")
+    model_path = Path(config.get("model_path", ""))
+    password   = _get_db_password(workspace)
+    table_list = [t.strip().upper() for t in tables.split(",") if t.strip()]
+    if not table_list:
+        return json.dumps({"error": "No tables specified"}, ensure_ascii=False)
+    if motor == "ORACLE":
+        col_rows, pk_rows = _query_oracle_schema(datasource, user, password, schema, table_filter=table_list)
+    elif motor == "SQLSERVER":
+        col_rows, pk_rows = _query_sqlserver_schema(datasource, schema, table_filter=table_list)
+    else:
+        return json.dumps({"error": f"Motor no soportado: {motor}"}, ensure_ascii=False)
+    if isinstance(col_rows, str):
+        return json.dumps({"error": col_rows}, ensure_ascii=False, separators=(",",":"))
+    db_tables = _build_table_dict(col_rows, pk_rows)
+    model = _load_model(model_path) or {"tables": {}}
+    tables_dict: dict = model.get("tables") or {}
+    updated, not_in_db = [], []
+    for tname in table_list:
+        if tname in db_tables:
+            existing = dict(tables_dict.get(tname, {}))
+            existing["columns"] = db_tables[tname]
+            existing["visible"] = True
+            tables_dict[tname] = existing
+            updated.append(tname)
+        else:
+            not_in_db.append(tname)
+    model["tables"] = tables_dict
+    _write_model_json(model_path, model)
+    result: dict = {"success": True, "updated": updated, "not_found_in_db": not_in_db,
+                    "model_path": str(model_path)}
+    if not_in_db:
+        result["note"] = f"{len(not_in_db)} tabla(s) no visibles en BD — no modificadas"
+    return json.dumps(result, ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Mapa dependencias entre soluciones: proyectos compartidos (impacto), conflictos versión NuGet.")
