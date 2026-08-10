@@ -16,7 +16,7 @@ Scripts PowerShell en `hooks/`. Ejecutar directamente si el MCP no está activo.
 | Script | Parámetros | Descripción |
 |--------|-----------|-------------|
 | `hooks/parse-sln.ps1` | `<sln>` | Parsea .sln → `scope_dirs, tipo (Batch/Online), workspace` |
-| `hooks/find-symbol.ps1` | `<nombre> "<scope_dirs>" [-Type class\|method\|property\|interface\|enum\|any]` | Localiza símbolo → `archivo:línea` |
+| `hooks/find-symbol.ps1` | `-ScopeDirs "<dirs,coma>" -Symbols "<sym1,sym2>" [-Type class\|method\|property\|interface\|enum\|any]` | Localiza uno o varios símbolos en una sola pasada `Select-String` → `{ symbols: { NAME: { found, count, matches[] } }, file_count }` |
 | `hooks/find-doc-section.ps1` | `<workspace> <keyword>` | Busca en docs funcionales → sección, archivo, línea |
 | `hooks/security-scan.ps1` | `<sln_path>` | SQL injection, credenciales hardcodeadas, XSS, input sin validar → findings con severidad |
 | `hooks/map-dependencies.ps1` | `<workspace>` | Mapa dependencias entre soluciones → proyectos compartidos, conflictos NuGet |

@@ -90,6 +90,7 @@ Ruta: `BD\<proyecto>-model.json`
 |-------|------|-------------|
 | `description` | string | Descripción semántica (manual) |
 | `source` | `db\|dalc\|manual` | Cómo se detectó esta tabla |
+| `visible` | boolean | `false` si la tabla no es accesible en `ALL_TABLES` con las credenciales actuales (Oracle). Ausente o `true` = visible. `sync_from_db` y `sync_indexes` preservan la tabla sin sobreescribirla. |
 | `columns` | object | Mapa de columnas por nombre |
 | `relations` | array | Relaciones con otras tablas |
 
@@ -125,8 +126,9 @@ Al actualizar el JSON (sync desde BD o análisis DALC):
 1. **Tablas/columnas**: si existe en JSON → actualizar tipo/nullable, preservar description
 2. **Columnas nuevas**: añadir con `source: "db"` o `"dalc"`, description vacía
 3. **Tablas no encontradas en BD**: marcar con `"orphan": true` (no eliminar)
-4. **Relaciones manuales**: nunca sobreescribir (`source: "manual"`)
-5. **Relaciones DALC duplicadas**: deduplicar por `target_table + source_column + target_column`
+4. **Tablas con `visible: false`**: preservar sin modificar — no consultar BD, no eliminar, no actualizar columnas
+5. **Relaciones manuales**: nunca sobreescribir (`source: "manual"`)
+6. **Relaciones DALC duplicadas**: deduplicar por `target_table + source_column + target_column`
 
 ---
 

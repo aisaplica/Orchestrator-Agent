@@ -10,14 +10,14 @@ Fallback: hook equivalente listado en `references/hooks.md`.
 | `validate_solution(sln_path)` | Paso 2 — confirma que la .sln existe y es accesible |
 | `detect_vcs(workspace)` | Detecta SVN/Git subiendo por las carpetas → `{vcs, root}`. Llamar antes de cualquier tool `svn_*`/`git_*` |
 | `get_db_config(workspace)` | Paso BD — lee XMLConfig → motor, datasource, schema |
-| `find_symbol(symbol, scope_dirs, symbol_type?)` | Localiza clases/métodos/propiedades en scope |
+| `find_symbol(symbol, scope_dirs, symbol_type?)` | Localiza clases/métodos/propiedades en scope — usa `find-symbol.ps1` (Select-String multi-patrón, una sola pasada) |
 | `compile_check(sln_path, no_restore=True, max_errors=20)` | Validator — build real → errors[], warnings[], success |
 | `run_tests(sln_path, no_build?)` | Tester — dotnet test → passed/failed/failures[], skipped |
 | `get_model_index(workspace)` | Índice ligero: {TABLA:[COL1,COL2,...]} ~15K tokens. Para impact analysis |
-| `get_table_schema(workspace, tables)` | Esquema completo (cols/tipos/relaciones/índices) de tablas específicas. ~3K tokens |
+| `get_table_schema(workspace, tables)` | Esquema completo (cols/tipos/relaciones/índices) de tablas específicas. ~3K tokens. Incluye campo `visible` si la tabla no es accesible en ALL_TABLES |
 | `search_model(workspace, keyword)` | Busca keyword en tablas/columnas/descripciones. Para localizar tablas sin saber el nombre |
 | `compare_model_tables(workspace, tables)` | Drift BD solo de tablas específicas. Post-migración |
-| `batch_find_symbols(symbols, scope_dirs)` | N símbolos en una llamada — evita N round-trips |
+| `batch_find_symbols(symbols, scope_dirs)` | N símbolos en una sola llamada y una sola pasada `Select-String` — evita N round-trips y N passes |
 | `search_code(workspace, sln_path, pattern)` | Regex en scope garantizado. Reemplaza 3-8× Grep |
 | `svn_status(workspace)` | Estado SVN → modificados, añadidos, eliminados, ? sin versionar |
 | `git_status(workspace)` | Estado Git → modificados, staged, ?? sin trackear, conflicto (U). Equivalente Git de `svn_status` |
@@ -35,12 +35,22 @@ Fallback: hook equivalente listado en `references/hooks.md`.
 | `svn_add(workspace, files?)` | Añade ficheros ?: CLI → TortoiseProc → instrucciones manuales |
 | `git_add(workspace, files?)` | Añade ficheros ??: CLI → TortoiseGitProc → instrucciones manuales. Equivalente Git de `svn_add` |
 | `security_scan(sln_path)` | Scan seguridad: SQL injection, XSS, credenciales, input sin validar |
-| `sync_model_tables(workspace, tables)` | Sincroniza tablas específicas model.json con BD (post-migración) |
+| `sync_model_tables(workspace, tables)` | Sincroniza tablas específicas model.json con BD (post-migración). Consulta solo las tablas indicadas (no el schema completo) |
 | `map_dependencies(workspace)` | Mapa dependencias: proyectos compartidos entre soluciones, conflictos NuGet |
-| `sync_from_db(workspace)` | Sincroniza tablas/columnas del modelo BD desde esquema real de BD |
-| `sync_indexes(workspace)` | Sincroniza índices desde BD al modelo — preserva source=manual |
+| `sync_from_db(workspace)` | Sincroniza tablas/columnas del modelo BD desde esquema real de BD. Tablas con `visible:false` se preservan sin tocar |
+| `sync_indexes(workspace)` | Sincroniza índices desde BD al modelo — preserva source=manual. Omite tablas con `visible:false` |
 | `analyze_dalc(workspace, sln_path?)` | Infiere relaciones entre tablas analizando código DALC |
 | `render_erd(workspace)` | Genera ERD HTML y abre navegador — sin cargar modelo en contexto |
 | `check_env(workspace)` | Valida entorno: XMLConfig, AIS, dotnet, SVN, Git, modelo BD → checks[] |
 | `generate_sql(workspace, motor?)` | Genera DDL SQL a fichero — devuelve ruta, SQL no entra en contexto |
 | `export_dmd(workspace)` | Exporta modelo a Oracle Data Modeler (.dmd) — devuelve ruta |
+
+---
+
+## Notas de implementación
+
+**Salida JSON compacta**: todos los tools devuelven JSON sin espacios (`separators=(",",":")`) para minimizar tokens. Solo la caché interna de `_load_model` usa `indent=2`.
+
+**Escritor canónico model.json**: toda escritura del modelo pasa por `_write_model_json` — UTF-8 con BOM, saltos CRLF, indent=2, ensure_ascii=True. Evita el bug de inflado de `ConvertTo-Json` en PS5.1 (1.1MB→3.5MB).
+
+**visible:false (Oracle)**: tablas marcadas `visible: false` en el modelo son preservadas por `sync_from_db`, `sync_indexes` y `sync_model_tables` sin consultarlas en BD. Origen: tabla existe en el modelo pero no en `ALL_TABLES` con las credenciales actuales.

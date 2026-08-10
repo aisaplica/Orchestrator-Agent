@@ -71,6 +71,19 @@ Sin `CHAR`, Oracle usa semántica de bytes por defecto. Con caracteres multibyte
 
 ---
 
+## visible:false (Oracle)
+
+Algunas tablas del modelo pueden tener `"visible": false`. Significa que la tabla existe en el modelo pero no está disponible en `ALL_TABLES`/`ALL_TAB_COLUMNS` con las credenciales actuales (grants insuficientes, sinónimo roto, o tabla eliminada).
+
+Comportamiento de las herramientas MCP:
+- `sync_from_db` y `sync_indexes` **preservan** la tabla sin modificarla (no la eliminan del modelo)
+- `get_table_schema` devuelve el schema del modelo e indica `visible: false`
+- `compare_model_tables` omite la tabla del drift
+
+Para resolver: verificar `GRANT SELECT ON <tabla> TO <usuario>` en Oracle. Si la tabla ya no existe, eliminarla manualmente del modelo.
+
+---
+
 # 🔍 Validaciones obligatorias
 
 ---

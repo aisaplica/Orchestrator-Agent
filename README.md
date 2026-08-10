@@ -98,6 +98,20 @@ Configuracion: `.mcp.json` en la raiz del plugin.
 
 ---
 
+## Novedades v1.6.1
+
+| Mejora | Descripcion |
+|--------|-------------|
+| **Salida MCP compacta** | JSON sin espacios en herramientas de analisis → ~21% menos tokens por respuesta |
+| **Runner optimizado** | Transcript leido en cola de 400 lineas (vs lectura completa) → inicio rapido en sesiones largas |
+| **batch_find_symbols** | Busqueda multi-simbolo con una sola pasada `Select-String` — N veces mas rapido |
+| **visible:false (Oracle)** | Tablas sin permisos en `ALL_TABLES` se marcan `visible: false` en lugar de eliminarse |
+| **Escritor canonico model.json** | Toda escritura del modelo pasa por `_write_model_json` (UTF-8 BOM, CRLF, indent=2) — elimina bug de inflado 1.1→3.5MB de `ConvertTo-Json` PS5.1 |
+| **get-config.ps1** | Nuevo hook: lee `XMLConfig.xml` y devuelve configuracion BD como JSON |
+| **find-symbol.ps1** | Nuevo hook multi-simbolo con patron `Select-String` unico — reemplaza la version anterior de un solo simbolo |
+
+---
+
 ## Soporte
 
 Repositorio interno ScacsWeb / Ingenieros.
