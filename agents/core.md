@@ -74,6 +74,25 @@ Crear la carpeta si no existe antes de escribir el fichero.
 
 NO: Aplica igual a DDL escrito a mano por el agente (no solo el generado por tools) — p.ej. `CREATE TABLE` de una tabla nueva que aún no existe en BD. Nunca dar el paso por completado solo por haber dejado el `.sql` en el repo.
 
+### Gate GenerarScriptIncidencia (CRITICO — ejecutar si el plan lo incluye)
+
+Ejecutar el paso `GenerarScriptIncidencia` si el plan del planner lo incluye (paso 5b).
+
+**Cuándo aplica:** el cambio requiere DDL o DML de producción (nueva columna, tabla, valores en config/parámetros/catálogos).
+
+**Proceso:**
+1. Leer `$SKILL_DIR\agents\incidencia.md`
+2. Identificar número Mantis del contexto (si lo hay)
+3. Generar script idempotente siguiendo la política de `references/bd.md` "Scripts de incidencias":
+   - Tabla config/parámetros sin FK entrantes → DELETE + INSERT
+   - Tabla con FK entrantes → MERGE o INSERT WHERE NOT EXISTS
+   - DDL → guarda PL/SQL (Oracle) o IF NOT EXISTS (SQL Server)
+4. Escribir fichero en `C:\AIS\<proyecto>\scripts\incidencia_<mantis|descripcion>_<timestamp>.sql`
+5. Mostrar script completo en la conversación
+6. Emitir recordatorio: **"📋 Registrar este script como nota privada en Mantis #<N>"** (si hay Mantis)
+
+**No omitir este paso** si el plan lo incluye. El script de producción es parte del entregable del pipeline, igual que el build.
+
 ## Implementación
 
 - Analizar solo código relevante, identificar flujo actual.

@@ -23,12 +23,27 @@ Agentes: <lista de agentes que se ejecutarán>
 4. **ModifyCode** — implementar el cambio mínimo necesario
 5. **CheckModel** — si involucra tablas BD: seguir el orden de consulta de `core.md` "Modelo BD" (search_model → get_model_index → get_table_schema).
    **QueryDB** — solo para datos en tiempo real (conteos, valores concretos, registros), no estructura.
+5b. **GenerarScriptIncidencia** — ver criterios abajo. Generar script SQL idempotente para aplicar en producción.
 6. **AnalyzeChanges** — pasar a analyzer
 7. **Validate** — pasar a validator
 8. **FixIssues** — incluir solo si se esperan posibles errores
 9. **Test** — pasar a tester
 10. **DocumentarCambio** — ver criterios abajo. En caso de duda → incluir.
 11. **Build** — siempre (Batch y Online). Compila + copia binarios a AIS.
+
+## Criterios para incluir GenerarScriptIncidencia
+
+Incluir si el cambio requiere ejecutar algo en la BD de producción:
+- DDL: nueva tabla, nueva columna, nuevo índice, modificación de columna
+- DML producción: insertar/modificar valores en tablas de configuración, parámetros, catálogos o códigos
+- DML negocio con datos iniciales necesarios para que el código funcione
+
+NO incluir si:
+- El cambio es solo en código C# sin impacto en esquema ni datos
+- Los datos los inserta el propio código en runtime (no son datos iniciales)
+- Es un entorno de desarrollo/test sin script de producción requerido
+
+Si hay número Mantis en el contexto del cambio → incluir siempre que aplique el criterio anterior.
 
 ## Criterios para incluir DocumentarCambio
 
@@ -51,8 +66,9 @@ NO incluir si es:
 
 - Modificación local simple → pasos: 1, 4, 7, 9, 11
 - Cambio con impacto en módulo → pasos: 1, 2, 3, 4, 6, 7, 9, 11
-- Cambio complejo / BD / flujo → todos los pasos necesarios + 11
+- Cambio complejo / BD / flujo → todos los pasos necesarios + 5b + 11
 - Cambio con nueva funcionalidad → incluir paso 10 (DocumentarCambio) + 11
+- Cambio con DDL o DML de producción → incluir paso 5b (GenerarScriptIncidencia) + 11
 
 ## Clasificación de intención
 
