@@ -15,7 +15,7 @@ Proporciona un pipeline completo de desarrollo asistido por IA: análisis, imple
 
 ## ¿Qué hace este plugin?
 
-El plugin extiende Claude Code con **43 comandos de barra** (`/orchestrator-*`) y un **servidor MCP local** (`orchestrator-workspace`) que conecta Claude con las herramientas nativas del proyecto: compilador .NET, SVN/Git, Oracle/SQL Server y el modelo de base de datos en JSON.
+El plugin extiende Claude Code con **44 comandos de barra** (`/orchestrator-*`) y un **servidor MCP local** (`orchestrator-workspace`) que conecta Claude con las herramientas nativas del proyecto: compilador .NET, SVN/Git, Oracle/SQL Server y el modelo de base de datos en JSON.
 
 ### Valor principal
 
@@ -154,6 +154,7 @@ El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer u
 | `/orchestrator-schema [tabla]` | Muestra esquema detallado de una tabla: columnas, tipos, PKs, índices |
 | `/orchestrator-erd` | Genera diagrama ERD del modelo BD en formato Mermaid |
 | `/orchestrator-db-env` | Muestra configuración de conexión BD del workspace activo |
+| `/orchestrator-pantallas <nombre>` | Busca el código de pantalla (`CTFORM`) a partir de su nombre funcional consultando `SICONTROLES` + `SIIDIOMA` en BD. Elimina la necesidad de un MD de directorio de pantallas — siempre actualizado desde la BD. También se activa automáticamente cuando cualquier otro comando necesita resolver un nombre de pantalla. |
 
 ### Control de versiones (SVN / Git)
 
