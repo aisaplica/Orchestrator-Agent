@@ -13,6 +13,15 @@ Cambio: <descripción breve del cambio solicitado>
 Agentes: <lista de agentes que se ejecutarán>
 ```
 
+## Paso 0 — Resolución de pantalla (si aplica, ANTES del plan)
+
+Si la descripción del cambio menciona una pantalla por **nombre funcional** (ej: "pantalla de propuestas", "gestión de clientes") en lugar de por código (`CTFORM` como `PRPROP`):
+- Invocar `Skill(skill: "orchestrator-skill-full:pantallas")` para obtener el código via BD
+- Añadir al bloque de contexto: `Pantalla: <CTFORM> (<descripción>)`
+- Usar ese código para localizar `.aspx` y clases `.cs` en los pasos siguientes
+
+⛔ No asumir el código de pantalla ni buscarlo por intuición — siempre resolverlo via skill.
+
 ## Pasos del plan (incluir solo los necesarios)
 
 1. **AnalyzeSolution** — confirmar .sln y extraer scope (siempre):

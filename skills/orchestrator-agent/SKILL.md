@@ -119,6 +119,18 @@ Antes de cualquier tarea, llamar `mcp__orchestrator-workspace__ping`.
   3. Informar al usuario: "Entorno Orchestrator configurado. **Reinicia Claude Code** y repite tu comando."
   4. No continuar hasta que el usuario reinicie.
 
+# Resolución de nombre de pantalla (GLOBAL — todo el pipeline)
+
+Si en cualquier vía de entrada —pipeline `<Sln>.sln - cambio`, modo directo o internamente por un agente— el usuario o el propio agente necesita una pantalla identificada por **nombre funcional** en lugar de su código (`CTFORM`/`CTMAPEO`):
+
+1. Invocar `Skill(skill: "orchestrator-skill-full:pantallas")` antes de continuar
+2. Usar el `CTFORM` obtenido como referencia en todos los pasos siguientes
+3. ⛔ No proceder con nombre ambiguo sin resolver — el código es necesario para localizar `.aspx`, clases `.cs` y entradas en `SICONTROLES`
+
+Aplica también cuando el pipeline lo necesita internamente (p.ej. `idiomas-standalone` para filtrar controles de una pantalla concreta, `explicar` para localizar el `.aspx` de una pantalla nombrada, `impacto` para analizar el alcance de una pantalla).
+
+---
+
 # Reglas de consumo de tokens (OBLIGATORIO)
 
 - **No parafrasear resultados de tools** — actuar directamente sobre el JSON recibido. No describir lo que devolvió la tool antes de usarlo.
@@ -239,6 +251,7 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Deshacer | `/orchestrator-deshacer`, "deshaz los cambios de X.sln", "revert X.sln" | `detect_vcs` → `$SKILL_DIR\agents\deshacer.md` |
 | Doc drift | `/orchestrator-doc-drift`, "documentación obsoleta de X.sln", "docs desactualizados" | `detect_vcs` → `$SKILL_DIR\agents\doc-drift.md` |
 | Sync indexes | `/orchestrator-sync-indexes [workspace]`, "sincroniza índices BD", "sync indexes" | `$SKILL_DIR\agents\sync-indexes.md` |
+| Pantallas | `/orchestrator-pantallas <nombre>`, "qué código tiene la pantalla X", "busca la pantalla X", "código de pantalla" | `Skill(skill: "orchestrator-skill-full:pantallas")` |
 | Help | `/orchestrator-help`, "ayuda del plugin", "qué comandos hay" | `$SKILL_DIR\agents\help.md` |
 | Schema BD | `/orchestrator-schema <tabla>`, "esquema de ECCLIENTES", "columnas de PRPROPUESTAS" | `$SKILL_DIR\agents\schema.md` |
 | Seed | `/orchestrator-seed <tabla> [N]`, "genera datos de prueba para ECCLIENTES", "INSERTs de prueba" | `$SKILL_DIR\agents\seed.md` |

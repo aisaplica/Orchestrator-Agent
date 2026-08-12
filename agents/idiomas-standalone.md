@@ -30,6 +30,7 @@ Invocación directa. Solo generación de SQL.
 3. Leer `docs/agentic_manual/tecnica/03_CAPAS_IDIOMAS_NOMENCLATURA.md`
 4. Preguntar al usuario (si no lo especificó):
    - ¿Para qué controles o páginas .aspx? O "todos" para escanear todo el scope
+     Si el usuario da un **nombre de pantalla** (no un código `CTFORM`) → invocar `Skill(skill: "orchestrator-skill-full:pantallas")` para resolver el código antes de continuar
    - ¿Idiomas activos? (por defecto: `ESP` — confirmar si el proyecto tiene otros)
 5. Preferente: `mcp__orchestrator-workspace__scan_aspx(sln_path)` → JSON con controles AIS y textos.
    Fallback: `hooks/scan-aspx.ps1 -SlnPath <sln_path>`.
