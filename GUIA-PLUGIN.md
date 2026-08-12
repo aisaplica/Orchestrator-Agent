@@ -1,8 +1,8 @@
 ---
 title: Orchestrator Skill Full — Guía de instalación y uso
 tags: [plugin, claude-code, ia, scacsweb, orchestrator]
-version: v1.6.0
-fecha: 2026-08-07
+version: v1.6.3
+fecha: 2026-08-12
 autor: david.gandoy@ubimia.com
 ---
 
@@ -15,7 +15,7 @@ Proporciona un pipeline completo de desarrollo asistido por IA: análisis, imple
 
 ## ¿Qué hace este plugin?
 
-El plugin extiende Claude Code con **41 comandos de barra** (`/orchestrator-*`) y un **servidor MCP local** (`orchestrator-workspace`) que conecta Claude con las herramientas nativas del proyecto: compilador .NET, SVN/Git, Oracle/SQL Server y el modelo de base de datos en JSON.
+El plugin extiende Claude Code con **43 comandos de barra** (`/orchestrator-*`) y un **servidor MCP local** (`orchestrator-workspace`) que conecta Claude con las herramientas nativas del proyecto: compilador .NET, SVN/Git, Oracle/SQL Server y el modelo de base de datos en JSON.
 
 ### Valor principal
 
@@ -132,6 +132,7 @@ El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer u
 | `/orchestrator-generar-dalc` | Genera clases DALC para Oracle/SQL Server a partir del modelo BD |
 | `/orchestrator-migrar` | Genera y aplica migraciones SQL desde el modelo JSON local |
 | `/orchestrator-seed` | Genera scripts SQL de datos iniciales (seed) para tablas de catálogo |
+| `/orchestrator-incidencia` | Genera script SQL de incidencia idempotente (DDL+DML) y lo registra como nota privada en Mantis |
 | `/orchestrator-format` | Aplica formato y convenciones de estilo al código fuente |
 | `/orchestrator-rename` | Renombra símbolo (clase, método, tabla) propagando todos los usos |
 
@@ -190,6 +191,12 @@ El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer u
 |---|---|
 | `/orchestrator-mantis #NNNN` | Consulta un issue de MantisBT por número |
 | `/orchestrator-mantis proyecto NNNN` | Lista issues de un proyecto de MantisBT |
+
+### Producción y operaciones
+
+| Comando | Qué hace |
+|---|---|
+| `/orchestrator-log-errores [ruta] [--desde] [--max] [--glob] [--niveles]` | Analiza log de errores web (NLog, ELMAH, AgendaWeb AIS), deduplica por firma SHA1 y abre tareas Mantis por tipo. El log crudo nunca entra en contexto. |
 
 ### Estadísticas y utilidades
 
@@ -256,8 +263,9 @@ El plugin incluye un servidor MCP Python que corre en local (`stdio`) y expone h
 | `svn_log` / `git_log` | Historial de commits/revisiones |
 | `svn_diff_revision` / `git_diff_revision` | Diff de una revisión concreta |
 | `svn_status` / `git_status` | Estado de cambios pendientes |
-| `compile_check` | Invoca MSBuild y devuelve errores/warnings |
+| `compile_check` | Invoca MSBuild o `dotnet build` con autodetección de toolchain; devuelve errores/warnings clasificados |
 | `validate_solution` | Validación completa de la solución .sln |
+| `parse_web_log` | Parsea logs de producción (NLog, ELMAH, AgendaWeb AIS) y devuelve errores agrupados por firma SHA1 sin cargar el log en contexto |
 | `run_tests` | Ejecuta tests .NET y devuelve resultados |
 | `db_query` | Consulta Oracle/SQL Server vía XMLConfig.xml |
 | `get_db_config` | Lee configuración de conexión del workspace |
@@ -361,4 +369,4 @@ O manualmente con `git pull` en el directorio del plugin.
 
 - **Repositorio:** https://github.com/aisaplica/Orchestrator-Agent.git  
 - **Incidencias y sugerencias:** abrir issue en el repositorio o contactar con el equipo de IA.
-- **Versión actual:** v1.6.0 (2026-08-07)
+- **Versión actual:** v1.6.3 (2026-08-12)
