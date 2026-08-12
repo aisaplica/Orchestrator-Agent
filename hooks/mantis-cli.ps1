@@ -39,7 +39,7 @@
 #>
 param(
     [Parameter(Mandatory)]
-    [ValidateSet("get-issue","list-issues","list-projects","get-statuses","patch-status","post-note","attach-file")]
+    [ValidateSet("get-issue","list-issues","list-projects","get-statuses","patch-status","post-note","attach-file","create")]
     [string]$Action,
 
     [string]$IssueId,
@@ -49,7 +49,13 @@ param(
     [string]$FilePath,
     [int]$PageSize = 100,
     [string]$Url,
-    [string]$ApiKey
+    [string]$ApiKey,
+    [string]$Summary,
+    [string]$Description,
+    [string]$Category,
+    [string]$Priority,
+    [string]$Severity,
+    [string]$Tags
 )
 
 $OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8
@@ -209,5 +215,31 @@ switch ($Action) {
             Write-Error "Error al adjuntar archivo: $_"
             exit 1
         }
+    }
+
+    "create" {
+        if (-not $ProjectId) { Write-Error "-ProjectId requerido para create"; exit 1 }
+        if (-not $Summary)   { Write-Error "-Summary requerido para create"; exit 1 }
+
+        $body = @{
+            summary     = $Summary
+            project     = @{ id = [int]$ProjectId }
+            description = if ($Description) { $Description } else { $Summary }
+        }
+        if ($Category) { $body.category = @{ name = $Category } }
+        if ($Priority) { $body.priority = @{ label = $Priority } }
+        if ($Severity) { $body.severity = @{ label = $Severity } }
+        if ($Tags) {
+            $body.tags = @($Tags -split ',' | ForEach-Object {
+                @{ name = $_.Trim() }
+            } | Where-Object { $_.name })
+        }
+
+        $r = Invoke-Mantis -Method Post -Path "/issues" -Body $body
+        @{
+            id      = $r.issue.id
+            summary = $r.issue.summary
+            status  = $r.issue.status.label
+        } | ConvertTo-Json -Depth 3
     }
 }
