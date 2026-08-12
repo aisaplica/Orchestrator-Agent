@@ -26,13 +26,30 @@ Triador de errores de producción. Una tarea por causa real, confirmación antes
 
 # Fase 0 — Fuente del log
 
-1. La ruta llega como argumento. Si **no** llega → preguntar. No inventar rutas.
-2. Opciones que el usuario puede pasar:
-   - `--desde YYYY-MM-DD` → parámetro `desde`
-   - `--max N` → `max_signatures`
-   - `--glob *.log` → `glob`
-   - `--niveles ERROR,FATAL` → `niveles`
-3. Anunciar en una línea: ruta, ventana, niveles — antes de empezar.
+## Convención ScacsWeb
+
+- **Directorio base**: `C:\Logs\`
+- **Patrón de fichero**: `<Solucion><Fecha(YYYYMMDD)>.txt` — ejemplo: `SCACSWebCDI20260812.txt`
+- **Soluciones conocidas**: `SCACSWebCDI`, `SCACSWebGEI`, `SCACSWebAIS`, `SCACSWeb` (y otras variantes del mismo patrón).
+
+## Detección automática
+
+1. Si el usuario pasa ruta completa como argumento → usarla directamente.
+2. Si el usuario pasa solo el nombre de solución (p. ej. `SCACSWebCDI`) → construir ruta:  
+   `C:\Logs\<Solucion><hoy YYYYMMDD>.txt`  
+   Si no existe el fichero de hoy → intentar ayer. Si tampoco → comunicarlo y pedir ruta.
+3. Si no viene ningún argumento → preguntar solo la **solución** (p. ej. "¿qué solución? SCACSWebCDI, SCACSWebGEI…").  
+   Con la respuesta, construir la ruta automáticamente usando la convención anterior.  
+   ⛔ No pedir la ruta completa cuando la convención permite inferirla.
+
+## Opciones que el usuario puede pasar
+
+- `--desde YYYY-MM-DD` → parámetro `desde`
+- `--max N` → `max_signatures`
+- `--glob *.txt` → `glob` (por defecto `*.txt` en `C:\Logs\`)
+- `--niveles ERROR,FATAL` → `niveles`
+
+Anunciar en una línea: ruta resuelta, ventana, niveles — antes de empezar.
 
 # Fase 1 — Parseo y deduplicación
 
