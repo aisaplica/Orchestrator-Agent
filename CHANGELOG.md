@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.4] — 2026-08-12
+
+### Nuevas features
+
+- `skills/pantallas/SKILL.md` — nuevo skill `/orchestrator-pantallas <nombre>` que resuelve el código de pantalla (`CTFORM`/`CTMAPEO`) a partir de su nombre funcional consultando `SICONTROLES JOIN SIIDIOMA` (`CTTIPO=3`, `CTFORM=CTMAPEO`, `IDIDIOMA='ESP'`). Elimina el mantenimiento del MD de directorio de pantallas — los datos vienen siempre de BD.
+- `skills/orchestrator-agent/SKILL.md` — sección global "Resolución de nombre de pantalla": cualquier vía de entrada al pipeline (pipeline principal, modos directos o agentes internos) que reciba una pantalla por nombre funcional invoca el skill antes de continuar. Mencionados explícitamente: `idiomas-standalone`, `explicar`, `impacto`.
+- `agents/planner.md` — Paso 0 de resolución de pantalla: si el cambio describe una pantalla por nombre (no por código), el planner resuelve el `CTFORM` vía skill antes de planificar.
+- `agents/idiomas-standalone.md` — paso 4 actualizado: si el usuario da un nombre de pantalla en lugar de código, invocar el skill de pantallas antes de filtrar controles.
+
+---
+
 ## [1.6.3] — 2026-08-12
 
 ### Fix / mejora
