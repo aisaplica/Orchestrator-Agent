@@ -1,6 +1,6 @@
 {
   "name": "orchestrator-skill-full",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Pipeline de desarrollo automatizado para proyectos ScacsWeb (ASP.NET / C# / .NET Framework). Análisis, implementación, validación, build y gestión de modelo de BD con soporte SVN y Oracle/SQL Server. Autodetección MSBuild/dotnet en compile_check. Comando /orchestrator-log-errores para triaje de logs de producción a tickets Mantis.",
   "author": {
     "name": "ScacsWeb / Ingenieros"

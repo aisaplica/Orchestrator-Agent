@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.3] — 2026-08-12
+
+### Fix / mejora
+
+- `agents/log-errores.md` — convención de ruta ScacsWeb: directorio base `C:\Logs\`, patrón `<Solucion><YYYYMMDD>.txt` (ej. `SCACSWebCDI20260812.txt`). Detección automática en 3 niveles: ruta completa → nombre de solución → pregunta solo la solución. Fallback a ayer si el fichero de hoy no existe.
+- `agents/log-errores.md` — exclusiones ScacsWeb en triaje (Fase 2): `PostValidationBRException` (validación controlada de negocio) y errores de HOST en `BSServices` (`<ERROR><NUMERO>…</ERROR>`) no generan tarea Mantis.
+
+---
+
 ## [1.6.2] — 2026-08-12
 
 ### Nuevas features
