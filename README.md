@@ -51,20 +51,76 @@ El servidor MCP (`orchestrator-workspace`) arranca automaticamente al primer uso
 
 ## Agentes disponibles
 
+### Pipeline y validacion
+
+| Comando | Descripcion |
+|---------|-------------|
+| `/orchestrator-validator` | Valida compilacion y coherencia logica del codigo |
+| `/orchestrator-fixer` | Corrige errores detectados por validator |
+| `/orchestrator-validar-entorno` | Verifica entorno: AIS, SVN, dotnet, modelo BD |
+| `/orchestrator-validar-req` | Valida si un commit SVN/Git cumple el requerimiento |
+
+### Analisis y revision
+
+| Comando | Descripcion |
+|---------|-------------|
+| `/orchestrator-review` | Revision de codigo con veredicto APRUEBA/CAMBIOS/BLOQUEA |
+| `/orchestrator-auditoria` | Revision de calidad y convenciones ScacsWeb |
+| `/orchestrator-security` | Auditoria de seguridad: SQL injection, XSS, secretos |
+| `/orchestrator-impacto` | Mapa de impacto de un cambio propuesto |
+| `/orchestrator-deps` | Mapa de dependencias entre proyectos de una solucion |
+| `/orchestrator-estructura` | Visualiza capas y dependencias de una solucion |
+| `/orchestrator-explicar` | Explica que hace una clase/metodo/proceso en lenguaje natural |
+| `/orchestrator-perf` | Perfil de rendimiento: N+1, consultas lentas, locks |
+| `/orchestrator-dead-code` | Detecta codigo muerto: clases, metodos y rutas sin usar |
+| `/orchestrator-hotspots` | Ficheros con mayor frecuencia de cambio y riesgo de conflicto |
+| `/orchestrator-doc-drift` | Detecta documentacion desincronizada con el codigo |
+
+### Historial y VCS
+
 | Comando | Descripcion |
 |---------|-------------|
 | `/orchestrator-historial` | Historial SVN/Git con autor, fecha y mensaje por revision |
 | `/orchestrator-stats` | Estadisticas de uso del pipeline |
-| `/orchestrator-deps` | Mapa de dependencias entre proyectos de una solucion |
-| `/orchestrator-security` | Auditoria de seguridad: SQL injection, XSS, secretos |
-| `/orchestrator-auditoria` | Revision de calidad y convenciones ScacsWeb |
+| `/orchestrator-diff-svn` | Diff SVN de una revision o rango |
+| `/orchestrator-commit-svn` | Prepara y ejecuta commit SVN con mensaje estructurado |
+
+### Base de datos y modelo
+
+| Comando | Descripcion |
+|---------|-------------|
 | `/orchestrator-comparar-modelo` | Compara modelo BD local con esquema real |
-| `/orchestrator-estructura` | Visualiza capas y dependencias de una solucion |
-| `/orchestrator-fixer` | Corrige errores detectados por validator |
-| `/orchestrator-validator` | Valida compilacion y coherencia logica del codigo |
-| `/orchestrator-validar-entorno` | Verifica entorno: AIS, SVN, dotnet, modelo BD |
-| `/orchestrator-validar-req` | Valida si un commit SVN/Git cumple el requerimiento |
-| `/orchestrator-impacto` | Mapa de impacto de un cambio propuesto |
+| `/orchestrator-schema` | Muestra esquema completo de tabla(s): columnas, tipos, indices, relaciones |
+| `/orchestrator-seed` | Genera INSERT sinteticos para una tabla respetando tipos, NULLs y FKs |
+| `/orchestrator-sync-indexes` | Sincroniza indices Oracle al modelo BD JSON del workspace |
+| `/orchestrator-comparar-entornos` | Compara esquema BD entre dos workspaces (dev vs produccion) |
+| `/orchestrator-migrar` | Migra DALCs y SQL entre Oracle y SQL Server |
+
+### Scaffolding y generacion
+
+| Comando | Descripcion |
+|---------|-------------|
+| `/orchestrator-generar-dalc` | Genera clases DALC + BE ScacsWeb a partir del esquema de una tabla |
+| `/orchestrator-incidencia` | Genera script SQL de incidencia idempotente y lo registra en Mantis |
+| `/orchestrator-init` | Bootstrap de workspace: workspace.json, carpetas y modelo BD inicial |
+| `/orchestrator-rename` | Renombra un simbolo C# y todas sus referencias en la solucion |
+| `/orchestrator-format` | Detecta y aplica correcciones de convencion ScacsWeb |
+
+### Produccion y operaciones
+
+| Comando | Descripcion |
+|---------|-------------|
+| `/orchestrator-log-errores` | Analiza log de errores web, deduplica por firma y abre tareas Mantis por tipo |
+| `/orchestrator-mantis` | Consulta issues MantisBT: fetch individual o listado por proyecto |
+
+### Utilidades
+
+| Comando | Descripcion |
+|---------|-------------|
+| `/orchestrator-dashboard` | Dashboard HTML con KPIs y ultimas ejecuciones del pipeline |
+| `/orchestrator-documentar` | Genera documentacion de una clase/modulo en formato ScacsWeb |
+| `/orchestrator-idiomas` | Gestion de literales multiidioma |
+| `/orchestrator-help` | Renderiza README y CHANGELOG del plugin como pagina HTML |
 
 ---
 
@@ -98,10 +154,21 @@ Configuracion: `.mcp.json` en la raiz del plugin.
 
 ---
 
+## Novedades v1.6.2
+
+| Mejora | Descripcion |
+|--------|-------------|
+| **`/orchestrator-log-errores`** | Nuevo comando: analiza log de produccion (NLog, ELMAH, AgendaWeb AIS), deduplica errores por firma SHA1 y abre tareas Mantis por tipo. El log crudo nunca entra en contexto del agente. |
+| **Autodeteccion MSBuild/dotnet** | `compile_check` ya no falla en soluciones WebForms/.NET Framework. `lib-msbuild.ps1` lee los `.csproj` y elige MSBuild de Visual Studio o CLI `dotnet` automaticamente. |
+| **compile-check.ps1** | Hook creado (faltaba — era la causa del fallo sistematico de `compile_check`). Acepta `MSB####`, `NU####` ademas de `CS####`. Fuerza idioma `en` durante la compilacion. |
+| **mantis-cli create** | Accion `create` anadida a `mantis-cli.ps1`: crea issues via REST con `Summary`, `Description`, `Category`, `Priority`, `Severity`, `Tags`. |
+| **parse_web_log (MCP)** | Nueva tool MCP que llama a `parse-weblog.ps1` — parse de logs sin cargar el fichero en contexto. |
+
 ## Novedades v1.6.1
 
 | Mejora | Descripcion |
 |--------|-------------|
+| **`/orchestrator-incidencia`** | Genera script SQL de incidencia idempotente (template DDL+DML) y lo registra como nota privada en Mantis. Integrado en el pipeline como paso opcional post-implementacion. |
 | **Salida MCP compacta** | JSON sin espacios en herramientas de analisis → ~21% menos tokens por respuesta |
 | **Runner optimizado** | Transcript leido en cola de 400 lineas (vs lectura completa) → inicio rapido en sesiones largas |
 | **batch_find_symbols** | Busqueda multi-simbolo con una sola pasada `Select-String` — N veces mas rapido |
