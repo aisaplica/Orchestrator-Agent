@@ -72,7 +72,13 @@ Anunciar en una línea: ruta resuelta, ventana, niveles — antes de empezar.
    - **dato** — registro inexistente, FK/PK. → tarea, prioridad menor.
    - **configuración** — cadena de conexión, permiso, ruta, setting. → tarea de entorno.
    - **infra** — timeout, caída de servicio externo. → proponer aparte, el usuario decide.
-   - **ruido** — trazas de terceros, cancelaciones de navegador, bots. → descartar.
+   - **ruido** — trazas de terceros, cancelaciones de navegador, bots, `PostValidationBRException`, respuestas de error de HOST (`<ERROR>` en BSServices). → descartar.
+## Exclusiones ScacsWeb — descartar siempre como ruido
+
+- **`PostValidationBRException`** (y cualquier subclase de `PostValidationBR*`): son validaciones de negocio controladas por la lógica de ScacsWeb. No representan un bug. → **descartar**.
+- **Errores de HOST** (`<ERROR><NUMERO>…</NUMERO>…</ERROR>` en respuesta de servicios como GDCONPRO, GDEXAPER, GDMTXSCA, etc.): son respuestas de error del host al cliente, no fallos de ScacsWeb. → **descartar**.
+- En general: cualquier firma cuyo origen sea `AIS.PR.BR.BSServices` y cuyo mensaje sea un XML de respuesta de host con `<ERROR>` o `CODTX` → **descartar**.
+
 2. Proponer **una tarea por firma accionable**:
    - **Resumen**: `[log:<hash>] <Excepción/Código> en <Origen>` (+ ` (<pantalla>)` si está)
    - **Descripción**: excepción · origen · pantalla · ocurrencias · ventana `primera → última` · ficheros · muestra (ya redactada) · categoría.
