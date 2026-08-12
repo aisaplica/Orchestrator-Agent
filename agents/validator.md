@@ -18,7 +18,8 @@ Solo código modificado + clases afectadas + dependencias directas. No el reposi
 
 - Si `success = false` → reportar `errors[]` directamente → FAIL inmediato. No continuar con paso 2.
 - Si `success = true` → continuar con validaciones lógicas (paso 2).
-- Si dotnet no disponible o sln no compila por razones de entorno → marcar como "compilación no verificable" y aplicar solo paso 2.
+- Si `builder_error` presente → compilador necesario no instalado (entorno, no código): marcar como "compilación no verificable" y aplicar solo paso 2. Reportar el `builder_error` al usuario.
+- `builder` informa qué compilador se usó (dotnet | msbuild) y `builder_reason` explica por qué.
 
 `compile_check` aquí es SOLO el gate de compilación del validator — NO sustituye ni implica el paso 9 **Build** del pipeline (`agents/build.md`: compila Debug+Release y copia binarios a AIS). Ese paso sigue siendo obligatorio tras tester, aunque `compile_check` haya devuelto `success=true`. No reportar la tarea como terminada solo por esto.
 

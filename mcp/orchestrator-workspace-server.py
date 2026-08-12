@@ -524,11 +524,13 @@ def find_symbol(symbol: str, scope_dirs: str, symbol_type: str = "any", max_resu
     return json.dumps(entry, ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Build real con dotnet → errors[], warnings[], success. no_restore=True omite NuGet restore. max_errors limita lista de errores en contexto (default 20).")
-def compile_check(sln_path: str, no_restore: bool = True, max_errors: int = 20) -> str:
+@mcp.tool(description="Build real → errors[], warnings[], success. El compilador se AUTODETECTA leyendo los .csproj de la solución: MSBuild de Visual Studio si hay proyectos .NET Framework/WebForms/COM, CLI dotnet si todos son SDK-style modernos — devuelve `builder` y `builder_reason`. ⛔ `builder_error` = el compilador que hacía falta no está instalado: la compilación NO se ha verificado, NO es un fallo del código. no_restore=True omite NuGet restore. builder: auto|dotnet|msbuild fuerza el compilador. max_errors limita lista en contexto (default 20).")
+def compile_check(sln_path: str, no_restore: bool = True, max_errors: int = 20, builder: str = "auto") -> str:
     args = [sln_path]
     if no_restore:
         args.append("-NoRestore")
+    if builder and builder != "auto":
+        args.extend(["-Builder", builder])
     result = _run_ps("compile-check.ps1", *args)
     if isinstance(result.get("errors"), list) and len(result["errors"]) > max_errors:
         result["errors_total"] = len(result["errors"])
@@ -1074,6 +1076,16 @@ def ping() -> str:
         "git_cli": _check_git_cli(),
         "python": _sys.version.split()[0],
     }, ensure_ascii=False, separators=(",",":"))
+
+
+@mcp.tool(description="Parsea un log de errores web (NLog/log4net, ELMAH XML, formato AgendaWeb AIS: 'Error: (dd/MM/yyyy H:mm) - Codigo error: ... Descripción error: ...' y volcado de stack .NET) y agrupa las ocurrencias por FIRMA (excepción o código ORA-xxxxx/Codigo error + frame de código propio + mensaje normalizado) → [{hash,exception,origin,pantalla,message,count,first_seen,last_seen,files,samples}] ordenado por count. Devuelve solo el agregado — el log crudo nunca entra en contexto. format_detected indica el formato reconocido. PII: literales SQL entre comillas simples redactados ('...' → '<val>'). path = fichero o carpeta.")
+def parse_web_log(path: str, glob: str = "*.log", desde: str = "", niveles: str = "ERROR,FATAL",
+                  max_signatures: int = 30, samples: int = 2) -> str:
+    args = ["-Path", path, "-Glob", glob, "-Niveles", niveles,
+            "-MaxSignatures", str(max_signatures), "-Samples", str(samples)]
+    if desde:
+        args += ["-Desde", desde]
+    return json.dumps(_run_ps("parse-weblog.ps1", *args), ensure_ascii=False, separators=(",",":"))
 
 
 if __name__ == "__main__":
