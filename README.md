@@ -95,6 +95,7 @@ El servidor MCP (`orchestrator-workspace`) arranca automaticamente al primer uso
 | `/orchestrator-sync-indexes` | Sincroniza indices Oracle al modelo BD JSON del workspace |
 | `/orchestrator-comparar-entornos` | Compara esquema BD entre dos workspaces (dev vs produccion) |
 | `/orchestrator-migrar` | Migra DALCs y SQL entre Oracle y SQL Server |
+| `/orchestrator-pantallas` | Busca el codigo de pantalla (CTFORM) a partir de su nombre funcional en SICONTROLES + SIIDIOMA |
 
 ### Scaffolding y generacion
 
@@ -153,6 +154,15 @@ El servidor corre en la maquina local del usuario (`stdio`).
 Configuracion: `.mcp.json` en la raiz del plugin.
 
 ---
+
+## Novedades v1.6.4
+
+| Mejora | Descripcion |
+|--------|-------------|
+| **`/orchestrator-pantallas`** | Nuevo skill que resuelve el codigo de pantalla (`CTFORM`) a partir de su nombre funcional consultando `SICONTROLES JOIN SIIDIOMA` en BD. Elimina el MD de directorio de pantallas — siempre actualizado desde la BD. |
+| **Resolucion automatica de pantallas** | Cualquier via de entrada al pipeline (pipeline principal, modos directos, agentes internos) detecta nombres funcionales de pantalla y los resuelve via BD antes de continuar. Cero mantenimiento manual. |
+| **Planner — Paso 0** | Si el cambio describe una pantalla por nombre, el planner resuelve el `CTFORM` antes de planificar. |
+| **idiomas-standalone** | Si el usuario especifica una pantalla por nombre en lugar de codigo, el agente la resuelve automaticamente antes de filtrar controles. |
 
 ## Novedades v1.6.2
 
