@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.6.2] — 2026-08-12
+
+### Nuevas features
+
+- `hooks/lib-msbuild.ps1` — librería que detecta si una solución .NET necesita MSBuild de Visual Studio o CLI `dotnet`, leyendo los `.csproj` de la solución. Resuelve el fallo silencioso en proyectos WebForms/COM donde `dotnet build` termina con MSB4019 pero el parser reportaba `error_count=0`.
+- `hooks/compile-check.ps1` — hook de compilación con autodetección de toolchain. Dot-sourcea `lib-msbuild.ps1`, fuerza idioma `en` durante la compilación (evita que etiquetas localizadas quiebren el parser), acepta códigos `MSB####`/`NU####` además de `CS####`, y normaliza `advertencia`/`aviso` a `warning`. **IMPORTANTE:** el MCP ya llamaba a este hook pero el archivo no existía — era la causa de que `compile_check` fallara siempre.
+- `hooks/parse-weblog.ps1` — parser de logs de error de la capa web. Soporta NLog/log4net, ELMAH XML, formato AgendaWeb AIS (`Error: (dd/MM/yyyy H:mm) - Codigo error: ... Descripción error: ...`) y volcados de stack .NET. Agrupa las N ocurrencias del mismo fallo en una firma SHA1 (excepción + frame más profundo de código propio + mensaje normalizado) — el log crudo nunca entra en contexto. Redacta literales SQL entre comillas simples antes de emitir el JSON.
+- `hooks/mantis-cli.ps1` — acción `create` añadida: crea issues vía `POST /issues` con campos `Summary`, `Description`, `Category`, `Priority`, `Severity`, `Tags`. Devuelve `{id, summary, status}` para dedup posterior.
+- `mcp/orchestrator-workspace-server.py` — tool `parse_web_log` añadida. Tool `compile_check` actualizada con parámetro `builder: auto|dotnet|msbuild` y descripción corregida con campo `builder_error`.
+- `agents/log-errores.md` — skill de triaje de logs de producción a tareas Mantis. Fases: F0 fuente · F1 parseo+dedup (gate de formato) · F2 triaje+propuesta (gate de usuario) · F3 dedup contra Mantis + alta de issues · F4 propuesta de pipeline. El log nunca entra en contexto del agente.
+- `commands/orchestrator-log-errores.md` — slash command `/orchestrator-log-errores <ruta> [--desde] [--max] [--glob] [--niveles]`.
+
+### Fix
+
+- `agents/validator.md` — Paso 1 actualizado: `builder_error` distingue "compilador no instalado (entorno)" de "fallo del código"; `builder` y `builder_reason` explican qué compilador se usó y por qué.
+
+---
+
+## [1.6.1] — 2026-08-12
+
+### Nuevas features
+
+- `agents/incidencia.md` — agente `/orchestrator-incidencia` para generar scripts SQL de incidencia idempotentes (template DDL+DML, política de idempotencia, nota en Mantis).
+- `hooks/GenerarScriptIncidencia` — integrado en el pipeline principal como paso opcional post-implementación.
+
+---
+
 ## [1.5.0] — 2026-08-06
 
 ### Fix
