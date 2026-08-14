@@ -31,9 +31,24 @@ Si el elemento objetivo no está claro → preguntar antes de analizar.
 
 # Proceso
 
-1. `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs.
-   `mcp__orchestrator-workspace__find_symbol(nombre, scope_dirs)` → referencias directas (fallback adicional: Grep manual limitado a scope_dirs).
-   Resolver solución y extraer scope (paths permitidos del .sln)
+0. Resolver solución → `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs, workspace.
+   `<proyecto>` = carpeta anterior a `src\trunk\` en el workspace (ej: `C:\Desarrollo\SVN\ScacsWeb\Ingenieros\src\trunk` → `Ingenieros`).
+   Comprobar si existe `C:\Desarrollo\SVN\ScacsWeb\<proyecto>\graphify-out\graph.json`:
+   - Existe → Proceso A (grafo)
+   - No existe → Proceso B (fallback, sin grafo)
+
+## Proceso A — con grafo de conocimiento (preferente)
+
+1. `Skill(skill: "graphify", args: 'query "qué depende de <elemento>"')` sobre el proyecto — BFS multi-hop, devuelve nodos/edges con `source_location`.
+   Si el elemento es tabla o columna BD, complementar con `Skill(skill: "graphify", args: 'query "qué usa la tabla <elemento>"')`.
+2. Filtrar resultados fuera de `scope_dirs`.
+3. Por cada nodo/edge devuelto: clasificar nivel de impacto según el tipo de edge — `WRITES`/`CALLS`/`EXTENDS` → [D], `READS`/depende del valor → [I], `IMPORTS`/mención nominal → [N].
+4. Nota de frescura: el grafo se actualiza solo tras build exitoso (`skills/orchestrator-agent/SKILL.md` paso 9b) — si hay cambios locales sin build reciente, avisar que pueden faltar referencias nuevas en el grafo.
+5. Calcular nivel global del cambio.
+
+## Proceso B — sin grafo (fallback)
+
+1. `mcp__orchestrator-workspace__find_symbol(nombre, scope_dirs)` → referencias directas (fallback adicional: Grep manual limitado a scope_dirs).
 2. Identificar tipo de elemento:
    - tabla BD → buscar en DALCs y queries SQL embebidas
    - columna BD → buscar en queries + mapeo de tipos en código
@@ -66,6 +81,7 @@ Si el elemento objetivo no está claro → preguntar antes de analizar.
 ```
 ## Análisis de impacto: <elemento> en <Solución>
 
+Fuente: grafo (graphify) | Grep manual
 Nivel global: ALTO | MEDIO | BAJO
 
 ### Referencias directas (N)

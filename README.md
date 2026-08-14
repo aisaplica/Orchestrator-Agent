@@ -155,6 +155,13 @@ Configuracion: `.mcp.json` en la raiz del plugin.
 
 ---
 
+## Novedades v1.7.0
+
+| Mejora | Descripcion |
+|--------|-------------|
+| **`/orchestrator-impacto` + grafo** | El agente de impacto ahora usa el grafo de conocimiento (`graphify-out/graph.json`) del proyecto cuando existe: impacto multi-hop directo/indirecto via `graphify query`, con Grep manual como fallback si el proyecto no tiene grafo generado. |
+| **Fix pipeline principal** | `skills/orchestrator-agent/SKILL.md` (entry point real) le faltaba el paso "Graphify Update" tras Build — solo estaba en el `SKILL.md` legacy. El grafo nunca se refrescaba tras un build exitoso. Sincronizado. |
+
 ## Novedades v1.6.4
 
 | Mejora | Descripcion |

@@ -188,9 +188,13 @@ Flujo estricto — no saltar pasos. Leer el agente correspondiente en cada etapa
 8c. DocumentarCambio (solo si planner lo incluyó) → `$SKILL_DIR\agents\documentar.md` modo UpdateDocs
 9. **Build** → `$SKILL_DIR\agents\build.md`
    Siempre tras modificaciones (Batch y Online)
+9b. **Graphify Update** (solo si el build fue exitoso) — actualizar grafo de conocimiento del proyecto:
+   `Skill(skill: "graphify", args: "update \"C:\\Desarrollo\\SVN\\ScacsWeb\\<proyecto>\\src\"")`
+   Donde `<proyecto>` = carpeta anterior a `src\trunk\` en el workspace (ej: workspace `C:\Desarrollo\SVN\ScacsWeb\Ingenieros\src\trunk` → `<proyecto>` = `Ingenieros`).
 10. **DB Env** (solo si añadió/modificó tablas, columnas o DALCs) → `$SKILL_DIR\agents\db-env.md`
 10b. **Checklist final** OBLIGATORIO — confirmar explícitamente antes de Log, no asumir:
     - Build (paso 9) se ejecutó de verdad (no solo `compile_check` del validator) y hay evidencia de copia a AIS (`C:\AIS\<proyecto>\bin\` Batch, `C:\AIS\<proyecto>\Web\` Online).
+    - Graphify Update (paso 9b) se ejecutó si el build fue exitoso.
     - Si se generó algún script SQL (DDL/migración/idiomas) → copiado a `C:\AIS\<proyecto>\scripts\` (`core.md` "Scripts SQL generados"), no solo en el repo.
     - Si se consultó esquema BD → se usó `model.json` vía tools (`get_table_schema`/`sync_model_tables`), no polling de vistas catálogo.
     Si falta cualquiera de estos → completarlo antes de continuar, no reportar éxito.

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0] — 2026-08-14
+
+### Nuevas features
+
+- `agents/impacto.md` — proceso reestructurado en dos rutas: Proceso A usa el grafo de conocimiento (`graphify-out/graph.json` del proyecto) vía `graphify query` para trazar impacto multi-hop (directo/indirecto) con `source_location`; Proceso B mantiene el Grep manual como fallback cuando el proyecto no tiene grafo generado. Output añade línea "Fuente: grafo (graphify) | Grep manual" para trazabilidad.
+
+### Fix
+
+- `skills/orchestrator-agent/SKILL.md` — pipeline principal (entry point real) le faltaba el paso 9b "Graphify Update" tras Build. Solo existía en el `SKILL.md` legacy de la raíz, por lo que el pipeline activo nunca refrescaba el grafo de conocimiento tras un build exitoso. Sincronizado con el legacy y añadido al checklist final (10b).
+
+---
+
 ## [1.6.4] — 2026-08-12
 
 ### Nuevas features
