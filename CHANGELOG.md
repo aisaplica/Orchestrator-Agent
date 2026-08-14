@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.9.0] — 2026-08-14
+
+### Nuevas features
+
+- `agents/dead-code.md` — Proceso A calcula grado de entrada por nodo leyendo `graphify-out/graph.json` directamente (Bash/python, sin cargar el grafo completo en contexto): grado 0 = candidato a código muerto, cobertura exhaustiva del proyecto en vez de Grep limitado a scope_dirs. Proceso B (search_code) se mantiene como fallback sin grafo.
+- `agents/cobertura.md` — Proceso A determina cobertura en una sola pasada sobre `graph.json` (edges `CALLS` desde nodos de test hacia producción), sustituyendo N llamadas a `search_code`. Cruza con "God Nodes" de `GRAPH_REPORT.md` para priorizar símbolos críticos sin cobertura por encima del orden plano DALC>BE>UI. Fallback sin grafo sin cambios.
+- `agents/doc-drift.md` — enriquecimiento puntual del paso 4 (no un Proceso A/B completo, la lógica de comparación doc↔código no cambia): si existe grafo, amplía los módulos afectados por el diff con `graphify query` multi-hop, capturando dependencias indirectas que también podrían necesitar actualización de documentación.
+- `agents/scacs-docs.md` y `agents/dependencias.md` — evaluados, sin cambios: el primero enruta a documentación estática del framework (no al código de un proyecto), el segundo opera a nivel de referencias `.csproj` entre soluciones (granularidad distinta al grafo por proyecto de graphify). Forzar la integración ahí sería redundante o no honesto.
+
+---
+
 ## [1.8.0] — 2026-08-14
 
 ### Nuevas features

@@ -30,6 +30,9 @@ El usuario puede especificar `--rev <revisiones>` para acotar el análisis.
 4. Identificar módulos afectados por el diff:
    - nombres de clases, tablas, métodos cambiados
    - rutas de ficheros modificados → extraer nombres de proyecto/módulo
+   - Si existe grafo de conocimiento (`<proyecto>/graphify-out/graph.json`, donde `<proyecto>` = carpeta anterior a `src\trunk\` en el workspace): ampliar la lista con `Skill(skill: "graphify", args: 'query "qué depende de <elemento>"')` por cada elemento directamente diffed — captura módulos afectados indirectamente (multi-hop) que también podrían necesitar actualización de doc, no solo los ficheros tocados en el diff.
+     Nota de frescura: el grafo se actualiza solo tras build exitoso (`skills/orchestrator-agent/SKILL.md` paso 9b).
+   - Si no existe grafo: usar solo los módulos directamente diffed (comportamiento actual).
 5. Leer el índice de docs: `docs/scacs/00-index.md`
 6. Para cada sección del índice que mencione un módulo/tabla afectado:
    a. Usar `mcp__orchestrator-workspace__find_doc_section(keyword, docs_path)` para localizar la sección

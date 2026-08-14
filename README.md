@@ -155,6 +155,14 @@ Configuracion: `.mcp.json` en la raiz del plugin.
 
 ---
 
+## Novedades v1.9.0
+
+| Mejora | Descripcion |
+|--------|-------------|
+| **`/orchestrator-dead-code` + grafo** | Calcula grado de entrada por nodo directamente sobre `graph.json` (Bash/python) en vez de Grep por scope — grado 0 = candidato, cobertura exhaustiva del proyecto. |
+| **`/orchestrator-cobertura` + grafo** | Determina cobertura en una sola pasada sobre el grafo (edges de test hacia produccion) y prioriza por "God Nodes" en vez del orden plano DALC>BE>UI. |
+| **`/orchestrator-doc-drift` + grafo** | Amplia los modulos afectados por un diff con dependencias indirectas (multi-hop) via `graphify query`, ademas de los ficheros directamente tocados. |
+
 ## Novedades v1.8.0
 
 | Mejora | Descripcion |

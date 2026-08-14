@@ -1,7 +1,7 @@
 ---
 title: Orchestrator Skill Full — Guía de instalación y uso
 tags: [plugin, claude-code, ia, scacsweb, orchestrator]
-version: v1.8.0
+version: v1.9.0
 fecha: 2026-08-14
 autor: david.gandoy@ubimia.com
 ---
@@ -120,9 +120,9 @@ El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer u
 | `/orchestrator-security` | Auditoría de seguridad: SQL injection, XSS, secretos en código |
 | `/orchestrator-review` | Revisión de código del diff actual antes de commit |
 | `/orchestrator-hotspots` | Detecta los ficheros con más cambios y mayor riesgo acumulado (cruza `god_nodes` del grafo graphify con churn VCS si el grafo existe, LoC como fallback) |
-| `/orchestrator-dead-code` | Localiza código muerto: métodos, clases y referencias sin uso |
+| `/orchestrator-dead-code` | Localiza código muerto: métodos, clases y referencias sin uso (grado de entrada 0 en el grafo graphify si existe, search_code como fallback) |
 | `/orchestrator-perf` | Análisis de rendimiento: consultas lentas, N+1, allocations |
-| `/orchestrator-cobertura` | Informe de cobertura de tests del proyecto |
+| `/orchestrator-cobertura` | Informe de cobertura de tests del proyecto (prioriza por God Nodes del grafo graphify si existe) |
 
 ### Implementación y scaffolding
 
@@ -175,7 +175,7 @@ El servidor MCP `orchestrator-workspace` arranca automáticamente en el primer u
 | `/orchestrator-impacto` | Mapa de impacto de un cambio propuesto: qué puede romperse (usa el grafo de conocimiento `graphify-out` del proyecto si existe, Grep como fallback) |
 | `/orchestrator-explicar [símbolo\|fichero]` | Explica en detalle una clase, método o fichero (usa `graphify explain` como fuente primaria si el grafo del proyecto existe, verificado siempre contra el código) |
 | `/orchestrator-doc` | Genera documentación técnica de un módulo o clase |
-| `/orchestrator-doc-drift` | Detecta divergencia entre documentación y código actual |
+| `/orchestrator-doc-drift` | Detecta divergencia entre documentación y código actual (amplía módulos afectados con dependencias indirectas vía grafo graphify si existe) |
 | `/orchestrator-scacs-docs` | Consulta la base de conocimiento ScacsWeb integrada |
 | `/orchestrator-dashboard` | Panel resumen del estado del workspace: build, tests, cobertura |
 
@@ -370,4 +370,4 @@ O manualmente con `git pull` en el directorio del plugin.
 
 - **Repositorio:** https://github.com/aisaplica/Orchestrator-Agent.git  
 - **Incidencias y sugerencias:** abrir issue en el repositorio o contactar con el equipo de IA.
-- **Versión actual:** v1.8.0 (2026-08-14)
+- **Versión actual:** v1.9.0 (2026-08-14)
