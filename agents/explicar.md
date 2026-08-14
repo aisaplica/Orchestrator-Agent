@@ -31,21 +31,41 @@ Si no queda claro qué explicar → preguntar antes de analizar.
 
 # Proceso
 
-1. Resolver solución → `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs, tipo
-2. Localizar el elemento:
+0. Resolver solución → `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs, tipo, workspace.
+   `<proyecto>` = carpeta anterior a `src\trunk\` en el workspace (ej: `C:\Desarrollo\SVN\ScacsWeb\Ingenieros\src\trunk` → `Ingenieros`).
+   Comprobar si existe `C:\Desarrollo\SVN\ScacsWeb\<proyecto>\graphify-out\graph.json`:
+   - Existe → Proceso A (grafo)
+   - No existe → Proceso B (fallback, sin grafo)
+
+## Proceso A — con grafo de conocimiento (preferente)
+
+1. `Skill(skill: "graphify", args: 'explain "<elemento>"')` — explicación base desde el grafo: propósito, módulo/comunidad al que pertenece, conexiones clave y `source_location`.
+2. `Skill(skill: "graphify", args: 'query "qué usa <elemento>"')` — dependencias y tablas BD referenciadas (edges READS/WRITES/CALLS).
+3. Con el `source_location` del paso 1, leer el fichero real con Read tool (líneas relevantes) — el grafo da contexto y localización rápida, pero el flujo de datos exacto y las tablas BD del Output se verifican siempre contra el código fuente, nunca se afirman solo desde el grafo.
+4. Si es un formulario .aspx: `mcp__orchestrator-workspace__scan_aspx(sln_path)` para entender los controles.
+5. Para cada tabla BD detectada → `mcp__orchestrator-workspace__get_table_schema(tabla)`.
+6. Leer `docs/scacs/00-index.md` → si hay sección de documentación funcional relevante, leerla como contexto.
+7. Nota de frescura: el grafo se actualiza solo tras build exitoso (`skills/orchestrator-agent/SKILL.md` paso 9b) — si hay cambios locales sin build reciente, verificar contra el código antes de dar por buena la explicación del grafo.
+8. Componer la explicación.
+
+## Proceso B — sin grafo (fallback)
+
+1. Localizar el elemento:
    `mcp__orchestrator-workspace__find_symbol(nombre, scope_dirs)` → file:line
    Si no encuentra → intentar con Glob y Grep limitados a scope_dirs
-3. Leer el fichero localizado con Read tool (leer solo las líneas relevantes)
-4. Si es un formulario .aspx: `mcp__orchestrator-workspace__scan_aspx(sln_path)` para entender los controles
-5. Identificar tablas BD referenciadas en el código → `mcp__orchestrator-workspace__get_table_schema(tabla)` para cada una
-6. Rastrear dependencias inmediatas: clases que usa, métodos que llama (Grep en scope_dirs)
-7. Leer `docs/scacs/00-index.md` → si hay sección de documentación funcional relevante, leerla como contexto
-8. Componer la explicación
+2. Leer el fichero localizado con Read tool (leer solo las líneas relevantes)
+3. Si es un formulario .aspx: `mcp__orchestrator-workspace__scan_aspx(sln_path)` para entender los controles
+4. Identificar tablas BD referenciadas en el código → `mcp__orchestrator-workspace__get_table_schema(tabla)` para cada una
+5. Rastrear dependencias inmediatas: clases que usa, métodos que llama (Grep en scope_dirs)
+6. Leer `docs/scacs/00-index.md` → si hay sección de documentación funcional relevante, leerla como contexto
+7. Componer la explicación
 
 # Output
 
 ```
 ## Explicación: <Elemento> en <Solución>
+
+Fuente: grafo (graphify) | Lectura directa
 
 ### Propósito
 <1-3 frases explicando qué hace y por qué existe>

@@ -155,6 +155,13 @@ Configuracion: `.mcp.json` en la raiz del plugin.
 
 ---
 
+## Novedades v1.8.0
+
+| Mejora | Descripcion |
+|--------|-------------|
+| **`/orchestrator-explicar` + grafo** | Usa `graphify explain` como fuente primaria de la explicacion (proposito, modulo/comunidad, conexiones) mas `graphify query` para dependencias y tablas BD. Siempre verifica contra el codigo fuente real antes de dar por buena la respuesta del grafo. |
+| **`/orchestrator-hotspots` + grafo** | Cruza los `god_nodes` ya calculados por graphify (grado de conectividad, sin coste LLM) con el churn VCS en vez de estimar complejidad por LoC. Completa el ranking con LoC si hay menos de 15 god nodes. |
+
 ## Novedades v1.7.0
 
 | Mejora | Descripcion |

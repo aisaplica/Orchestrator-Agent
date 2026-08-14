@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.0] — 2026-08-14
+
+### Nuevas features
+
+- `agents/explicar.md` — Proceso A usa `graphify explain` como fuente primaria de la explicación (propósito, módulo/comunidad, conexiones) más `graphify query` para dependencias/tablas BD; siempre verifica flujo de datos y tablas contra el código fuente real, no solo contra el grafo. Proceso B mantiene el comportamiento actual (find_symbol + Grep) como fallback sin grafo.
+- `agents/hotspots.md` — Proceso A cruza los `god_nodes` ya calculados por graphify (sección "God Nodes" de `GRAPH_REPORT.md`, sin coste LLM) con el churn VCS, sustituyendo el proxy LoC/100 por el grado de conectividad real del grafo. Si hay menos de 15 god nodes, completa el ranking con el fallback LoC. Tabla de salida añade columna "Fuente" (grafo | LoC) por fila.
+
+---
+
 ## [1.7.0] — 2026-08-14
 
 ### Nuevas features
