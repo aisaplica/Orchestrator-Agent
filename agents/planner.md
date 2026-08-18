@@ -27,6 +27,7 @@ Si la descripción del cambio menciona una pantalla por **nombre funcional** (ej
 1. **AnalyzeSolution** — confirmar .sln y extraer scope (siempre):
    - `mcp__orchestrator-workspace__validate_solution(sln_path)` → confirma existencia
    - `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs, tipo, workspace
+   - Leer `references/conventions.md` (naming, reglas C#, excepciones, SQL, scope) — el plan debe respetar estas restricciones desde el paso 1, no corregirlas después en validator/fixer
 2. **ReadDocumentation** — leer índices técnico + funcional (omitir si cambio trivial)
 3. **AnalyzeCode** — solo dentro del scope permitido
 4. **ModifyCode** — implementar el cambio mínimo necesario

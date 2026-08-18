@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.1] — 2026-08-18
+
+### Fix
+
+- `agents/planner.md` — paso 1 (`AnalyzeSolution`) no leía `references/conventions.md`: el plan se generaba sin las restricciones de naming/excepciones/SQL/scope, que solo se aplicaban después en `validator`/`fixer`. Ahora el gate se lee desde el paso 1, antes de generar el plan.
+
+---
+
 ## [1.9.0] — 2026-08-14
 
 ### Nuevas features
