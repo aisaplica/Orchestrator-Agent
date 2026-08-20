@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.2] — 2026-08-20
+
+### Fix
+
+- `hooks/mantis-cli.ps1`, `agents/mantis.md`, `references/mantis.md` — la resolución de credenciales Mantis apuntaba a `~/.claude/skills/project-db-env/env.json`, una skill externa que el plugin dejó de requerir desde v1.6.0 (ver FAQ en `GUIA-PLUGIN.md`). Ahora lee `env.json` en la raíz del propio plugin (mismo archivo que ya usa `db-env`), igual que `hooks/check-env.ps1`.
+
+---
+
 ## [1.9.1] — 2026-08-18
 
 ### Fix

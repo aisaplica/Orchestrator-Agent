@@ -4,7 +4,7 @@ description: 'Consulta MantisBT: fetch de issue individual o listado por proyect
 ---
 
 > Config: `references/mantis.md`
-> Credenciales: `~/.claude/skills/project-db-env/env.json > herramientas.mantis`
+> Credenciales: `env.json` (raíz del plugin) `> herramientas.mantis`
 
 # Mantis
 
@@ -19,24 +19,13 @@ Consulta MantisBT via REST API. Solo lectura — no modifica código ni ejecuta 
 
 # Paso 1 — Resolver credenciales (OBLIGATORIO en ambos modos)
 
-Ejecutar PowerShell para leer credenciales desde `env.json`:
+Las credenciales las resuelve automáticamente `hooks\mantis-cli.ps1` (orden: parámetro inline >
+`env.json` en la raíz del plugin > `$env:MANTIS_URL`/`$env:MANTIS_API_KEY`). No hace falta leerlas
+a mano antes de invocar el CLI.
 
-```powershell
-$envPath = Join-Path $env:USERPROFILE ".claude\skills\project-db-env\env.json"
-if (Test-Path $envPath) {
-    $cfg = Get-Content $envPath -Raw | ConvertFrom-Json
-    $url = $cfg.herramientas.mantis.url
-    $key = $cfg.herramientas.mantis.api_key
-} else {
-    $url = $env:MANTIS_URL
-    $key = $env:MANTIS_API_KEY
-}
-Write-Host "MANTIS_URL=$url"
-Write-Host "MANTIS_KEY_SET=$(-not [string]::IsNullOrEmpty($key))"
-```
-
-- Si `$url` o `$key` vacíos → preguntar al usuario antes de continuar.
-- Si `env.json` no existe → informar: "Instala el skill `project-db-env` o define `MANTIS_URL`/`MANTIS_API_KEY` como variables de entorno."
+- Si el CLI falla por credenciales ausentes → informar: "Configura `herramientas.mantis` en
+  `env.json` (raíz del plugin, copiar desde `env.template.json`) o define `MANTIS_URL`/`MANTIS_API_KEY`
+  como variables de entorno."
 
 ---
 

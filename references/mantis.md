@@ -2,12 +2,13 @@
 
 ## Fuente de credenciales (por orden de prioridad)
 
-1. **`env.json` del skill `project-db-env`** (recomendado):
+1. **`env.json` del propio plugin** (recomendado, mismo archivo que usa `db-env`):
    ```
-   C:\Users\<usuario>\.claude\skills\project-db-env\env.json
+   <raíz del plugin>\env.json
    > herramientas.mantis.url
    > herramientas.mantis.api_key
    ```
+   Si no existe, copiar `env.template.json` → `env.json` en la raíz del plugin y rellenar.
 
 2. **Variables de entorno** (fallback):
    ```powershell

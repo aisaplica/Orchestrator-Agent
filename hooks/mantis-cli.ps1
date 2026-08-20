@@ -25,10 +25,10 @@
     Número de issues a devolver en list-issues. Default: 100.
 
 .PARAMETER Url
-    URL base de la instancia MantisBT. Default: env.json > $env:MANTIS_URL.
+    URL base de la instancia MantisBT. Default: env.json (raiz plugin) > $env:MANTIS_URL.
 
 .PARAMETER ApiKey
-    API key de MantisBT. Default: env.json > $env:MANTIS_API_KEY.
+    API key de MantisBT. Default: env.json (raiz plugin) > $env:MANTIS_API_KEY.
 
 .EXAMPLE
     .\mantis-cli.ps1 -Action get-issue -IssueId 1234
@@ -68,8 +68,8 @@ function Resolve-MantisCredentials {
     $key = $KeyParam
 
     if (-not $url -or -not $key) {
-        $perfilUsuario = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { "." }
-        $envPath = Join-Path $perfilUsuario ".claude\skills\project-db-env\env.json"
+        $pluginRoot = Split-Path $PSScriptRoot -Parent
+        $envPath = Join-Path $pluginRoot "env.json"
         if (Test-Path $envPath) {
             try {
                 $cfg = Get-Content $envPath -Raw | ConvertFrom-Json
@@ -83,11 +83,11 @@ function Resolve-MantisCredentials {
     if (-not $key) { $key = $env:MANTIS_API_KEY }
 
     if (-not $url) {
-        Write-Error "MANTIS_URL no definida. Configurar en project-db-env/env.json o variable de entorno MANTIS_URL."
+        Write-Error "MANTIS_URL no definida. Configurar en env.json (raiz del plugin) o variable de entorno MANTIS_URL."
         exit 1
     }
     if (-not $key) {
-        Write-Error "MANTIS_API_KEY no definida. Configurar en project-db-env/env.json o variable de entorno MANTIS_API_KEY."
+        Write-Error "MANTIS_API_KEY no definida. Configurar en env.json (raiz del plugin) o variable de entorno MANTIS_API_KEY."
         exit 1
     }
 
