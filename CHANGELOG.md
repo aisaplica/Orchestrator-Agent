@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.0] — 2026-08-25
+
+### Nuevas features
+
+- `references/encuadre-checklist.md` — checklist de patrones tarea/contexto/alcance destilado de la skill `prompt-master` (verbo vago, descripción emocional, sin criterios de aceptación, sin alcance explícito), adaptado a requerimientos ScacsWeb. Corrige en silencio, marca "Dudas pendientes" solo si la corrección cambiaría la intención del usuario.
+- `skills/mantis/SKILL.md` — Fase 2 (Encuadre del requerimiento) aplica el checklist a la descripción cruda del issue antes de redactar el requerimiento técnico; el bloque `[ENCUADRE MANTIS #<id>]` añade línea `Alcance:`.
+- `agents/planner.md` — bloque de salida `[PLANNER]` añade `Alcance:` / `Fuera de alcance:`, acotando el plan a los archivos/tablas que el cambio realmente toca antes de pasar a implementación.
+
+---
+
 ## [1.9.2] — 2026-08-20
 
 ### Fix

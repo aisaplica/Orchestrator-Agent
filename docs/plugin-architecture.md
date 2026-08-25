@@ -84,6 +84,7 @@ orchestrator-skill-full/
 │   ├── conventions.md
 │   ├── dalc-patterns.md
 │   ├── dmd-format.md
+│   ├── encuadre-checklist.md ← checklist patrones tarea/contexto/alcance (base: prompt-master)
 │   ├── hooks.md             ← tabla Preferente/Fallback MCP↔hook
 │   ├── json-schema.md
 │   ├── mantis.md
@@ -323,6 +324,7 @@ Las tools MCP son el wrapper Python que llama al hook via `_run_ps()`.
 | `conventions.md` | Naming conventions, coding standards ScacsWeb |
 | `dalc-patterns.md` | Patrones DALC (Data Access Layer Component) |
 | `dmd-format.md` | Formato del modelo de BD (DMD) |
+| `encuadre-checklist.md` | Checklist de patrones tarea/contexto/alcance para sharpear requerimientos vagos (Mantis, planner) — subconjunto adaptado de la skill `prompt-master` |
 | `hooks.md` | Tabla completa Preferente (MCP) / Fallback (hook) |
 | `json-schema.md` | Esquemas JSON usados por el MCP server |
 | `mantis.md` | Configuración MantisBT, credenciales, endpoints (read+write) |

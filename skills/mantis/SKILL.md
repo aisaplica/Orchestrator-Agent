@@ -160,7 +160,11 @@ Nota: la creación de issues via REST API requiere `POST /issues`. Si la instanc
    - Del `$config.projects[].sln` si hay coincidencia
    - Del nombre del proyecto si es inferible
    - **Si hay ambigüedad → preguntar al usuario**
-3. Redactar el encuadre:
+3. Aplicar `references/encuadre-checklist.md` a la descripción cruda del issue: corregir verbos
+   vagos, descripciones emocionales ("no funciona"), ausencia de criterios de aceptación y falta de
+   alcance explícito. Corregir en silencio; añadir a "Dudas pendientes" solo si la corrección
+   cambiaría la intención del usuario.
+4. Redactar el encuadre:
 
 ```
 [ENCUADRE MANTIS #<id>]
@@ -168,6 +172,8 @@ Solución:    <Nombre>.sln
 Tipo:        Batch | Online (inferido del path)
 Requerimiento:
   <Descripción técnica del cambio a realizar, en términos de código/BD/UI>
+Alcance:
+  <Archivos, pantallas (CTFORM) o tablas concretas afectadas, si se conocen>
 Criterios de aceptación:
   - <criterio 1>
   - <criterio 2>
@@ -175,7 +181,7 @@ Dudas pendientes:
   - <si las hay>
 ```
 
-4. ⛔ **CHECKPOINT** — Mostrar el encuadre y esperar confirmación explícita del usuario antes de continuar.
+5. ⛔ **CHECKPOINT** — Mostrar el encuadre y esperar confirmación explícita del usuario antes de continuar.
    Si el usuario corrige → actualizar encuadre y volver a mostrar.
 
 ---

@@ -94,12 +94,17 @@ NO incluir si es:
 
 ## Output — OBLIGATORIO, emitir antes de cualquier otra acción
 
+Antes de emitir, aplicar `references/encuadre-checklist.md` a `Alcance`/`Fuera de alcance`: acotar
+a los archivos/tablas que el cambio realmente toca, no al módulo completo.
+
 Emitir en la conversación (no omitir, no resumir internamente):
 
 ```
 **[PLANNER]**
 Solución: <nombre.sln> | Tipo: <Batch|Online> | Workspace: <path>
 Cambio: <descripción breve>
+Alcance: <archivos/tablas concretos que se modifican>
+Fuera de alcance: <si aplica>
 Agentes: <lista>
 
 Plan: 1. <Paso>  2. <Paso>  ...  N. <Paso>  (máx 10)
