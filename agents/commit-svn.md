@@ -21,6 +21,7 @@ Scope siempre limitado a ficheros dentro de la solución especificada.
 
 # Proceso
 
+0. **Verificar `trunk`.** El commit va sobre `trunk`. Si `svn info` / el path del workspace indica una rama (`branches/…`) → detener y avisar; no commitear en una rama salvo petición explícita en el prompt.
 1. Resolver solución y extraer scope (paths permitidos del .sln)
 2. Preferente: `mcp__orchestrator-workspace__svn_status(workspace)` → JSON con cambios por archivo.
    Preferente: `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs para filtrar.

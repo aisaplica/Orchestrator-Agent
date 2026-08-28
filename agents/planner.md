@@ -97,6 +97,9 @@ NO incluir si es:
 Antes de emitir, aplicar `references/encuadre-checklist.md` a `Alcance`/`Fuera de alcance`: acotar
 a los archivos/tablas que el cambio realmente toca, no al módulo completo.
 
+Los cambios se aplican SIEMPRE sobre `trunk` (el workspace activo), nunca sobre una rama, salvo que
+el prompt pida explícitamente una rama. Si el workspace no es `trunk` → no planificar: avisar y detener.
+
 Emitir en la conversación (no omitir, no resumir internamente):
 
 ```

@@ -45,12 +45,12 @@ Todos los `.ps1` se guardan con **UTF-8 con BOM** (`EF BB BF`) — ver "Requisit
 | `sync_from_db` | 🐍 | `(workspace)` | Sincroniza tablas/columnas desde BD real. Tool nativa Python — sin hook |
 | `sync_model_tables` | 🐍 | `(workspace, tables)` | Actualiza tablas específicas post-migración. Tool nativa Python — sin hook |
 | `sync_indexes` | 🐍 | `(workspace)` | Sincroniza índices Oracle al modelo. Tool nativa Python — sin hook |
-| `hooks/compare-model.ps1` | ⚠️ | `<workspace> [-Tables T1,T2]` | Drift model.json vs BD (`compare_model` / `compare_model_tables`). Fase 2 |
-| `hooks/generate-migration.ps1` | ⚠️ | `<workspace>` | Scripts SQL (CREATE/ALTER) desde drift (`generate_migration`). Fase 2 |
-| `hooks/analyze-dalc.ps1` | ⚠️ | `<workspace> <proyecto> [-SolutionPath <sln>]` | Infiere relaciones desde JOINs/WHERE en DALCs (`analyze_dalc`). Fase 2 |
-| `hooks/render-erd.ps1` | ⚠️ | `<workspace> [-Proyecto <nombre>]` | Genera ERD HTML (`render_erd`). Fase 2 |
-| `hooks/generate-sql.ps1` | ⚠️ | `<workspace> [-Proyecto <nombre>] [-Motor ORACLE\|SQLSERVER]` | Genera DDL SQL a fichero (`generate_sql`). Fase 2 |
-| `hooks/export-dmd.ps1` | ⚠️ | `<workspace> [-Proyecto <nombre>]` | Exporta a Oracle Data Modeler `.dmd` (`export_dmd`). Fase 2 |
+| `compare_model` / `compare_model_tables` | 🐍 | `(workspace [, tables])` | Drift model.json vs BD real (motor de XMLConfig). Nativa Python — sin hook |
+| `generate_sql` | 🐍 | `(workspace)` | DDL desde el modelo en el dialecto de XMLConfig (Oracle: `VARCHAR2(n CHAR)`) → `C:\AIS\<proy>\scripts\<proy>-ddl.sql`. Sin argumento de motor. Nativa Python |
+| `generate_migration` | 🐍 | `(workspace)` | Script SQL idempotente modelo→BD → `C:\AIS\<proy>\scripts\<proy>-migration.sql`. Nativa Python |
+| `analyze_dalc` | 🐍 | `(workspace [, sln_path])` | Infiere relaciones desde `JOIN ... ON` en el SQL de los DALC (.cs). Nativa Python |
+| `render_erd` | 🐍 | `(workspace)` | ERD HTML (mermaid) → `<workspace>\BD\<proy>-erd.html`, abre navegador. Nativa Python |
+| `export_dmd` | 🐍 | `(workspace)` | Oracle Data Modeler `.dmd` (XML mínimo) → `<workspace>\BD\<proy>.dmd`. Nativa Python |
 
 ## Control de versiones (SVN / Git)
 

@@ -68,6 +68,24 @@ $SKILL_DIR\
 7. Si el usuario indica entorno (DEV/PRE/PRO) → usar connection string correspondiente.
    Sin indicación → usar `entornos.defecto` del proyecto en `env.json`.
 
+# Modo Modelo BD (ERD / SQL / sync) — `/orchestrator-erd`
+
+Cuando la petición es "actualiza el modelo BD", "muestra el ERD", "genera SQL de tablas",
+"relaciona tablas", "compara el modelo con la BD":
+
+| Petición | Tool MCP (nativa Python) | Resultado |
+|----------|--------------------------|-----------|
+| Actualizar el modelo desde la BD | `sync_from_db(workspace)` (+ `sync_indexes` si Oracle) | reescribe `BD\<proy>-model.json` |
+| Ver el ERD | `render_erd(workspace)` | `<workspace>\BD\<proy>-erd.html`, abre navegador |
+| Generar DDL completo | `generate_sql(workspace)` | `C:\AIS\<proy>\scripts\<proy>-ddl.sql` (dialecto de XMLConfig, sin argumento de motor) |
+| Inferir relaciones desde los DALC | `analyze_dalc(workspace, sln_path)` | añade `relations` (confidence:low) al modelo |
+| Detectar drift modelo vs BD | `compare_model(workspace)` / `compare_model_tables(workspace, "T1,T2")` | JSON con `tables_only_in_model`/`tables_only_in_db`/`tables_changed` |
+| Script de migración modelo→BD | `generate_migration(workspace)` | `C:\AIS\<proy>\scripts\<proy>-migration.sql` (idempotente) |
+| Exportar a Oracle Data Modeler | `export_dmd(workspace)` | `<workspace>\BD\<proy>.dmd` |
+
+El SQL/HTML/XML generado NO entra en contexto — las tools devuelven la ruta. Leer el fichero solo si hay que revisarlo.
+`workspace` = cwd de la sesión (literal). El motor sale SIEMPRE de `docs\XMLConfig.xml`, nunca se pasa como argumento.
+
 # Disparadores típicos
 
 - "qué tablas tiene el proyecto X"

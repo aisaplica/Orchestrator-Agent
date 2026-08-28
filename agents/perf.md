@@ -35,7 +35,7 @@ El usuario puede filtrar por DALC específico o tabla.
    d. Cruzar contra índices del modelo → detectar columnas sin índice
    e. Detectar patrones no-sargables con Grep: `UPPER(`, `LIKE '%`, `TO_CHAR(`, `TO_DATE(`
    f. Detectar SELECT * con Grep: `"SELECT \*"` o `"SELECT \*"` en el string de query
-5. Analizar `mcp__orchestrator-workspace__analyze_dalc(sln_path)` si disponible → usar resultado como base
+5. Analizar `mcp__orchestrator-workspace__analyze_dalc(workspace, sln_path)` si disponible → usar resultado como base
 6. Generar reporte
 
 # Clasificación de severidad

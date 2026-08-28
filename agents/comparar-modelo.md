@@ -87,7 +87,7 @@ Tablas sincronizadas: <N>
 
 ### Acción recomendada
 - Para sincronizar el **modelo JSON** completo: invocar "actualiza el modelo BD" (`/orchestrator-erd`)
-- Para generar **scripts SQL de migración** (aplicar modelo a BD): `mcp__orchestrator-workspace__generate_migration(workspace)` → devuelve `sql_scripts[]` en JSON, no escribe fichero. Escribir el contenido a `C:\AIS\<proyecto>\scripts\<proyecto>-migration-<fecha>[-<detalle>].sql` (ver `core.md` "Scripts SQL generados").
+- Para generar el **script SQL de migración** (aplicar modelo a BD): `mcp__orchestrator-workspace__generate_migration(workspace)` → escribe `C:\AIS\<proyecto>\scripts\<proyecto>-migration.sql` (idempotente, dialecto de XMLConfig) y devuelve `{path, statements, tables_created, tables_altered}`. El SQL no entra en contexto — leer el fichero si hace falta revisarlo.
 
 ### Cerrar el loop post-migración
 Después de que el usuario aplique los scripts SQL generados:

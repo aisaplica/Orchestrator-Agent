@@ -70,12 +70,14 @@ Prioriza: seguridad > rapidez | robustez > simplicidad | cambios mínimos > rees
 - No continuar con dudas sin resolver
 - No salir del scope de la solución
 - No ejecutar build sin validación previa
+- **Trabajar siempre sobre `trunk`, nunca sobre una rama** — salvo que el prompt pida explícitamente una rama concreta. Si el workspace no apunta a `trunk` → avisar y detener.
 
 # Workspace y Rutas
 
 Workspace = carpeta actual en Claude Code (ej: `C:\Desarrollo\SVN\ScacsWeb\<Proyecto>\src\trunk\`).
 Es el cwd de la sesión (visible como "Primary working directory" en el contexto de sistema) — usar ese valor literal, sin preguntar ni inferir, como argumento `workspace` en CUALQUIER llamada `mcp__orchestrator-workspace__*`.
 Proyecto = carpeta anterior a `trunk\` (ej: `Ingenieros`).  
+⛔ El workspace debe apuntar a **`trunk`**. Todo cambio de código va en `trunk`, nunca en una rama, salvo petición explícita en el prompt. Si el cwd es una rama o no contiene `trunk` → avisar y detener.
 Batch: `dotNet\Batch\<Name>\<Name>.sln` | Online: raiz trunk `.sln` o `dotNet\Web\`  
 Inferencia: path contiene `dotNet\Batch\` → Batch | resto → Online
 

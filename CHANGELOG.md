@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.13.0] — 2026-08-28
+
+### Nuevas features — fase 2: tools BD/ERD (nativas Python)
+
+Las 6 tools BD/modelo que solo eran stubs `_run_ps` a hooks inexistentes se implementan **nativas en el MCP server**, reutilizando los helpers de esquema (`_query_oracle_schema`, `_query_sqlserver_schema`, `_build_table_dict`, `_load_model`) — mismo patrón que `sync_from_db` / `sync_model_tables`. Sin hook PowerShell (coherente con las `sync_*`).
+
+- `generate_sql(workspace)` — DDL completo (CREATE TABLE + PK + FK desde `relations` + índices). **Sin argumento `motor`**: el dialecto sale de `docs/XMLConfig.xml`. Oracle usa `VARCHAR2(n CHAR)` (regla `references/bd.md`). Escribe `C:\AIS\<proy>\scripts\<proy>-ddl.sql` (sin sufijo de motor).
+- `compare_model(workspace)` / `compare_model_tables(workspace, tables)` — drift `model.json` vs BD real → `tables_only_in_model`, `tables_only_in_db`, `tables_changed` (columnas +/- y tipo/longitud/nullable). Respeta `visible:false`.
+- `generate_migration(workspace)` — script SQL **idempotente** modelo→BD (Oracle: PL/SQL con check `ALL_TAB_COLUMNS`; SQL Server: `IF NOT EXISTS INFORMATION_SCHEMA`). Cambios de tipo marcados `-- REVISAR`, DROP COLUMN comentado. Escribe `C:\AIS\<proy>\scripts\<proy>-migration.sql`.
+- `render_erd(workspace)` — ERD HTML (mermaid `erDiagram`) → `<workspace>\BD\<proy>-erd.html`, abre el navegador.
+- `analyze_dalc(workspace, sln_path?)` — infiere relaciones desde `JOIN ... ON a.X = b.Y` en el SQL embebido de los `*Dalc*.cs`; añade al modelo con `confidence:low`, sin tocar `source:manual`.
+- `export_dmd(workspace)` — Oracle Data Modeler `.dmd` (XML mínimo: tablas, columnas, PK, FK) → `<workspace>\BD\<proy>.dmd`.
+
+`_run_ps` ya no las referencia; `_HOOK_FALLBACKS` limpio (solo fase 3).
+
+### Regla — trabajar siempre en `trunk`
+
+Todo cambio de código va sobre `trunk`, nunca sobre una rama, salvo petición explícita en el prompt. Añadido a `references/conventions.md`, `agents/core.md`, `agents/planner.md`, `agents/commit-svn.md` (paso 0) y `skills/orchestrator-agent/SKILL.md` (Reglas Globales + Workspace y Rutas).
+
+### Sync docs
+
+- `references/mcp.md`, `references/hooks.md`, `docs/plugin-architecture.md` §6 — las 6 tools marcadas 🐍 nativas; convención Preferente/Fallback reescrita en 3 categorías (✅ tool+hook / 🐍 nativa Python / ⚠️ pendiente).
+- `agents/db-env.md` — nueva sección "Modo Modelo BD (ERD / SQL / sync)" que wirea las tools al comando `/orchestrator-erd`.
+- `agents/comparar-modelo.md` — `generate_migration` ahora escribe fichero (no `sql_scripts[]`).
+- `agents/perf.md` — `analyze_dalc(workspace, sln_path)`.
+
+### Pendiente
+
+Fase 3: `security_scan`, `map_dependencies`, `scan_aspx`, `search_code`, `find_doc_section`, hooks Git.
+
+---
+
 ## [1.12.0] — 2026-08-28
 
 ### Nuevas features — hooks fase 1 (cierra huecos del pipeline)

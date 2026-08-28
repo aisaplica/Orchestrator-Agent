@@ -95,6 +95,7 @@ Ejecutar el paso `GenerarScriptIncidencia` si el plan del planner lo incluye (pa
 
 ## Implementación
 
+- **Siempre sobre `trunk`, nunca sobre una rama.** El workspace activo es `trunk`; no cambiar de rama ni crear una salvo que el prompt lo pida explícitamente. Si el cwd no es `trunk` → detener y avisar.
 - Analizar solo código relevante, identificar flujo actual.
 - Modificar lo mínimo necesario.
 - NO reescribir módulos completos. NO romper dependencias. NO introducir cambios innecesarios.

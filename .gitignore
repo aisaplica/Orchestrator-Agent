@@ -1,3 +1,7 @@
 # Credenciales y datos sensibles — nunca commitear
 env.json
 projects/*/schema.md
+
+# Python
+__pycache__/
+*.pyc

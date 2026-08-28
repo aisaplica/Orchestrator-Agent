@@ -233,9 +233,10 @@ name: orchestrator-<nombre>
 
 > No todas tienen hook fallback implementado. `references/hooks.md` marca el estado de cada una:
 > ✅ hook implementado · 🐍 impl Python nativa (sin hook) · ⚠️ ni hook ni impl → devuelve `{"status":"not_implemented","fallback":"..."}`.
-> Pendientes (fase 2/3): `compare_model`, `compare_model_tables`, `generate_migration`, `generate_sql`,
-> `render_erd`, `export_dmd`, `analyze_dalc`, `map_dependencies`, `security_scan`, `scan_aspx`,
-> `search_code`, `find_doc_section`, `git_status`, `git_log`, `git_add`.
+> 🐍 BD/modelo: `compare_model`, `compare_model_tables`, `generate_sql`, `generate_migration`, `render_erd`,
+> `analyze_dalc`, `export_dmd`, `get_table_schema`, `db_query`, `sync_from_db`, `sync_model_tables`, `sync_indexes`.
+> ⚠️ Pendientes (fase 3): `map_dependencies`, `security_scan`, `scan_aspx`, `search_code`,
+> `find_doc_section`, `git_status`, `git_log`, `git_add`.
 
 | Categoría | Tools |
 |-----------|-------|
@@ -253,18 +254,25 @@ name: orchestrator-<nombre>
 
 ### Convención Preferente/Fallback
 
-Cada tool MCP tiene un hook PowerShell equivalente (tabla completa en `references/hooks.md`).
-- Usar siempre la tool MCP
-- Si no responde → ejecutar el hook equivalente
-- Documentar ambos cuando se añade una tool nueva
+Tres categorías (estado por tool en `references/hooks.md`):
+- **✅ tool + hook**: usar la tool MCP; si no responde, ejecutar `hooks/<equivalente>.ps1`.
+- **🐍 nativa Python** (BD/modelo): la tool está implementada en el propio server (reutiliza los
+  helpers de esquema Oracle/SQL Server). No hay hook — si el MCP está caído, no hay fallback.
+- **⚠️ pendiente**: la tool existe pero devuelve `{"status":"not_implemented","fallback":"..."}`.
+
+Al añadir una tool nueva: decidir categoría. Si toca BD/modelo → nativa Python. Si es acción de
+sistema/VCS/build → tool + hook, y documentar ambos.
 
 ### Patrón de implementación
 
 ```python
+# Categoría ✅ (tool + hook):
 @mcp.tool(description="Descripción clara de qué hace la tool")
 def nombre_tool(param1: str, param2: str = "default") -> str:
-    """Descripción docstring."""
-    return _run_ps("hook-equivalente.ps1", param1, param2)
+    return json.dumps(_run_ps("hook-equivalente.ps1", param1, param2), ensure_ascii=False, separators=(",",":"))
+
+# Categoría 🐍 (BD/modelo, nativa): impl en _nombre_impl(), reutiliza
+# _bd_ctx / _query_oracle_schema / _query_sqlserver_schema / _load_model / _write_model_json.
 ```
 
 ---

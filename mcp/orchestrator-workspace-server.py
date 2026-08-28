@@ -1,11 +1,13 @@
 """
 orchestrator-workspace MCP server — herramientas nativas para soluciones ScacsWeb.
-Cada tool llama al hook PowerShell correspondiente y devuelve JSON estructurado.
+La mayoría de tools llaman a un hook PowerShell (`hooks/*.ps1`); las tools BD/modelo
+son nativas Python (reutilizan los helpers de esquema de este módulo).
 """
 
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -16,22 +18,17 @@ HOOKS_DIR  = Path(__file__).parent.parent / "hooks"
 CACHE_DIR  = Path.home() / ".claude" / "cache" / "rs-models"
 
 # Hooks aún no implementados en este build: fallback que el agente debe usar en su lugar.
+# (Las tools BD/modelo NO están aquí — son nativas Python, no llaman a _run_ps.)
 # Al implementar el hook correspondiente, quitarlo de este dict.
 _HOOK_FALLBACKS = {
-    "search-code.ps1":     "Usar Grep/Glob restringido a scope_dirs (get_scope).",
-    "scan-aspx.ps1":       "Releer el diff .aspx/.aspx.cs para la lista de controles (ver agents/core.md).",
+    "search-code.ps1":      "Usar Grep/Glob restringido a scope_dirs (get_scope).",
+    "scan-aspx.ps1":        "Releer el diff .aspx/.aspx.cs para la lista de controles (ver agents/core.md).",
     "find-doc-section.ps1": "Grep del keyword en docs/scacs/.",
-    "compare-model.ps1":   "Sin comparación de modelo en este build (fase 2). Confirmar tablas puntuales con db_query.",
-    "generate-migration.ps1": "Familia BD/ERD no implementada en este build (fase 2).",
-    "generate-sql.ps1":    "Familia BD/ERD no implementada en este build (fase 2).",
-    "render-erd.ps1":      "Familia BD/ERD no implementada en este build (fase 2).",
-    "export-dmd.ps1":      "Familia BD/ERD no implementada en este build (fase 2).",
-    "analyze-dalc.ps1":    "Familia BD/ERD no implementada en este build (fase 2).",
     "map-dependencies.ps1": "Análisis de dependencias entre soluciones no disponible (fase 3).",
-    "security-scan.ps1":   "Scan de seguridad no implementado (fase 3). Revisar SQLi / credenciales / XSS en el diff a mano.",
-    "git-status.ps1":      "Los repos ScacsWeb usan SVN: usar svn_status. Para Git real, invocar el CLI git directamente.",
-    "git-log.ps1":         "Los repos ScacsWeb usan SVN: usar svn_log. Para Git real, invocar el CLI git directamente.",
-    "git-add.ps1":         "Los repos ScacsWeb usan SVN: usar svn_add. Para Git real, invocar el CLI git directamente.",
+    "security-scan.ps1":    "Scan de seguridad no implementado (fase 3). Revisar SQLi / credenciales / XSS en el diff a mano.",
+    "git-status.ps1":       "Los repos ScacsWeb usan SVN: usar svn_status. Para Git real, invocar el CLI git directamente.",
+    "git-log.ps1":          "Los repos ScacsWeb usan SVN: usar svn_log. Para Git real, invocar el CLI git directamente.",
+    "git-add.ps1":          "Los repos ScacsWeb usan SVN: usar svn_add. Para Git real, invocar el CLI git directamente.",
 }
 
 mcp = FastMCP("orchestrator-workspace")
@@ -515,6 +512,599 @@ def _sync_indexes_impl(workspace: str) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Helpers BD/ERD: config, normalización de columnas, DDL SCACS
+#   SCACS no tiene "motor" como argumento — el dialecto sale SIEMPRE de
+#   XMLConfig.xml (get_db_config). Un proyecto = una BD.
+# ---------------------------------------------------------------------------
+
+def _bd_ctx(workspace: str) -> dict:
+    """Contexto BD del workspace: motor, datasource, schema, user, model_path, password.
+    Devuelve {'error': ...} si falta configuración."""
+    config = _get_config(workspace)
+    if not isinstance(config, dict) or "error" in config:
+        msg = config.get("error") if isinstance(config, dict) else "get-config.ps1 no devolvió configuración"
+        return {"error": msg}
+    mp = config.get("model_path", "")
+    return {
+        "motor":      (config.get("motor") or "").upper(),
+        "datasource": config.get("datasource", ""),
+        "schema":     config.get("schema", ""),
+        "user":       config.get("user", ""),
+        "model_path": Path(mp) if mp else None,
+        "password":   _get_db_password(workspace),
+    }
+
+
+def _scripts_dir(workspace: str) -> Path:
+    """C:\\AIS\\<proyecto>\\scripts — destino canónico SCACS de todo .sql generado."""
+    return Path("C:/AIS") / _proyecto(workspace) / "scripts"
+
+
+_TYPE_RE = re.compile(
+    r"^\s*([A-Za-z0-9_ ]+?)\s*(?:\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?(?:CHAR|BYTE)?\s*\))?\s*$", re.I
+)
+
+
+def _norm_col(col: dict) -> dict:
+    """Normaliza una columna del modelo. Acepta {'type':'NUMBER(10)'} y {'type':'NUMBER','length':10}."""
+    raw = str(col.get("type", "")).strip()
+    m = _TYPE_RE.match(raw)
+    base   = (m.group(1).strip().upper() if m else raw.upper())
+    length = int(m.group(2)) if (m and m.group(2)) else int(col.get("length") or 0)
+    scale  = int(m.group(3)) if (m and m.group(3)) else int(col.get("scale") or 0)
+    return {
+        "type_base": base,
+        "length":    length,
+        "scale":     scale,
+        "nullable":  bool(col.get("nullable", True)),
+        "pk":        bool(col.get("pk", False)),
+    }
+
+
+def _ddl_type(nc: dict, engine: str) -> str:
+    """Tipo DDL en el dialecto del proyecto. Oracle: VARCHAR2(n CHAR) OBLIGATORIO (references/bd.md)."""
+    base, length, scale = nc["type_base"], nc["length"], nc["scale"]
+    if engine == "ORACLE":
+        if base in ("VARCHAR2", "VARCHAR", "NVARCHAR", "NVARCHAR2", "STRING"):
+            return f"VARCHAR2({length or 4000} CHAR)"
+        if base in ("CHAR", "NCHAR"):
+            return f"CHAR({length or 1} CHAR)"
+        if base in ("NUMBER", "NUMERIC", "DECIMAL"):
+            if length and scale:
+                return f"NUMBER({length},{scale})"
+            return f"NUMBER({length})" if length else "NUMBER"
+        if base in ("INT", "INTEGER", "SMALLINT", "BIGINT"):
+            return "NUMBER(10)"
+        if base in ("DATE", "DATETIME", "SMALLDATETIME"):
+            return "DATE"
+        if base in ("TIMESTAMP", "DATETIME2"):
+            return "TIMESTAMP"
+        if base in ("CLOB", "NCLOB", "TEXT", "NTEXT"):
+            return "CLOB"
+        if base in ("BLOB", "RAW", "VARBINARY", "IMAGE"):
+            return "BLOB"
+        if base in ("FLOAT", "REAL", "DOUBLE"):
+            return "BINARY_DOUBLE"
+        return f"{base}({length})" if length else base
+    # SQLSERVER
+    if base in ("VARCHAR2", "VARCHAR", "NVARCHAR", "NVARCHAR2", "STRING"):
+        return f"NVARCHAR({length or 'MAX'})"
+    if base in ("CHAR", "NCHAR"):
+        return f"NCHAR({length or 1})"
+    if base in ("NUMBER", "NUMERIC", "DECIMAL"):
+        if length and scale:
+            return f"DECIMAL({length},{scale})"
+        if length and length <= 9:
+            return "INT"
+        if length:
+            return "BIGINT"
+        return "DECIMAL(18,2)"
+    if base in ("INT", "INTEGER"):
+        return "INT"
+    if base in ("SMALLINT",):
+        return "SMALLINT"
+    if base in ("BIGINT",):
+        return "BIGINT"
+    if base in ("DATE",):
+        return "DATE"
+    if base in ("DATETIME", "TIMESTAMP", "DATETIME2", "SMALLDATETIME"):
+        return "DATETIME2"
+    if base in ("CLOB", "NCLOB", "TEXT", "NTEXT"):
+        return "NVARCHAR(MAX)"
+    if base in ("BLOB", "RAW", "VARBINARY", "IMAGE"):
+        return "VARBINARY(MAX)"
+    if base in ("FLOAT", "REAL", "DOUBLE"):
+        return "FLOAT"
+    return f"{base}({length})" if length else base
+
+
+def _model_tables(model: dict, include_hidden: bool = False) -> dict:
+    """{TABLA_UPPER: tdef} del modelo. Por defecto omite visible:false (regla references/bd.md)."""
+    out = {}
+    for tname, tdef in (model.get("tables") or {}).items():
+        if not include_hidden and tdef.get("visible", True) is False:
+            continue
+        out[tname.upper()] = tdef
+    return out
+
+
+def _model_engine(model: dict, ctx: dict) -> str:
+    return (model.get("engine") or ctx.get("motor") or "").upper()
+
+
+# ---------------------------------------------------------------------------
+# compare_model / generate_migration / generate_sql / render_erd / analyze_dalc / export_dmd
+# ---------------------------------------------------------------------------
+
+def _compare_model_impl(workspace: str, tables: str = "") -> dict:
+    ctx = _bd_ctx(workspace)
+    if "error" in ctx:
+        return {"success": False, "error": ctx["error"]}
+    if not ctx["model_path"]:
+        return {"success": False, "error": "model_path no configurado en XMLConfig.xml"}
+    model = _load_model(ctx["model_path"])
+    if model is None:
+        return {"success": False, "error": f"Modelo BD no encontrado: {ctx['model_path']}. Ejecutar sync_from_db primero."}
+    engine = _model_engine(model, ctx)
+
+    table_filter = [t.strip().upper() for t in tables.split(",") if t.strip()] or None
+
+    if engine == "ORACLE":
+        col_rows, pk_rows = _query_oracle_schema(ctx["datasource"], ctx["user"], ctx["password"], ctx["schema"], table_filter)
+    elif engine == "SQLSERVER":
+        col_rows, pk_rows = _query_sqlserver_schema(ctx["datasource"], ctx["schema"], table_filter)
+    else:
+        return {"success": False, "error": f"Motor no soportado: {engine!r}"}
+    if isinstance(col_rows, str):
+        return {"success": False, "error": col_rows, "engine": engine}
+
+    db_tables = {t: cols for t, cols in _build_table_dict(col_rows, pk_rows).items()}
+    mdl_tables = _model_tables(model)
+    if table_filter:
+        db_tables  = {t: v for t, v in db_tables.items() if t in table_filter}
+        mdl_tables = {t: v for t, v in mdl_tables.items() if t in table_filter}
+
+    only_in_model = sorted(set(mdl_tables) - set(db_tables))
+    only_in_db    = sorted(set(db_tables) - set(mdl_tables))
+    changed: dict = {}
+
+    for tname in sorted(set(mdl_tables) & set(db_tables)):
+        mcols = {c.upper(): _norm_col(v) for c, v in (mdl_tables[tname].get("columns") or {}).items()}
+        dcols = {c.upper(): _norm_col(v) for c, v in db_tables[tname].items()}
+        cols_only_model = sorted(set(mcols) - set(dcols))
+        cols_only_db    = sorted(set(dcols) - set(mcols))
+        mism = []
+        for c in sorted(set(mcols) & set(dcols)):
+            a, b = mcols[c], dcols[c]
+            diffs = []
+            if a["type_base"] != b["type_base"]:            diffs.append(f"tipo {b['type_base']}→{a['type_base']}")
+            if a["length"] != b["length"]:                  diffs.append(f"longitud {b['length']}→{a['length']}")
+            if a["scale"] != b["scale"]:                     diffs.append(f"escala {b['scale']}→{a['scale']}")
+            if a["nullable"] != b["nullable"]:               diffs.append(f"nullable {b['nullable']}→{a['nullable']}")
+            if diffs:
+                mism.append({"column": c, "diffs": diffs})
+        if cols_only_model or cols_only_db or mism:
+            changed[tname] = {
+                "columns_only_in_model": cols_only_model,
+                "columns_only_in_db":    cols_only_db,
+                "type_mismatches":       mism,
+            }
+
+    drift = bool(only_in_model or only_in_db or changed)
+    return {
+        "success": True, "engine": engine, "schema": ctx["schema"], "drift": drift,
+        "tables_only_in_model": only_in_model,  # el modelo va por delante → generate_migration los CREA
+        "tables_only_in_db":    only_in_db,     # en BD y no en el modelo → sync_from_db para traerlos
+        "tables_changed":       changed,
+        "compared":             len(set(mdl_tables) | set(db_tables)),
+    }
+
+
+def _sql_terminator(engine: str) -> str:
+    return "\n/\n" if engine == "ORACLE" else "\nGO\n"
+
+
+def _pk_cols(tdef: dict) -> list:
+    return [c.upper() for c, v in (tdef.get("columns") or {}).items() if _norm_col(v)["pk"]]
+
+
+def _generate_sql_impl(workspace: str) -> dict:
+    ctx = _bd_ctx(workspace)
+    if "error" in ctx:
+        return {"success": False, "error": ctx["error"]}
+    if not ctx["model_path"]:
+        return {"success": False, "error": "model_path no configurado en XMLConfig.xml"}
+    model = _load_model(ctx["model_path"])
+    if model is None:
+        return {"success": False, "error": f"Modelo BD no encontrado: {ctx['model_path']}."}
+    engine = _model_engine(model, ctx)
+    if engine not in ("ORACLE", "SQLSERVER"):
+        return {"success": False, "error": f"Motor no soportado: {engine!r}"}
+
+    mdl = _model_tables(model)
+    lines, n_stmt, n_fk, n_idx = [], 0, 0, 0
+    proyecto = _proyecto(workspace)
+    lines.append(f"-- DDL generado desde el modelo BD de {proyecto}")
+    lines.append(f"-- Motor: {engine} (de XMLConfig.xml) - NO editar a mano el dialecto")
+    lines.append("")
+
+    for tname in sorted(mdl):
+        tdef = mdl[tname]
+        cols = tdef.get("columns") or {}
+        if not cols:
+            continue
+        coldefs = []
+        for cname, cdef in cols.items():
+            nc = _norm_col(cdef)
+            null_kw = "" if nc["nullable"] else " NOT NULL"
+            coldefs.append(f"    {cname.upper():<32} {_ddl_type(nc, engine)}{null_kw}")
+        pk = _pk_cols(tdef)
+        body = ",\n".join(coldefs)
+        if pk:
+            body += f",\n    CONSTRAINT PK_{tname} PRIMARY KEY ({', '.join(pk)})"
+        lines.append(f"CREATE TABLE {tname} (\n{body}\n){_sql_terminator(engine).rstrip()}")
+        lines.append("")
+        n_stmt += 1
+
+    # FKs desde relations (solo las que apuntan a tablas del modelo)
+    for tname in sorted(mdl):
+        for rel in (mdl[tname].get("relations") or []):
+            tgt = str(rel.get("target_table", "")).upper()
+            sc  = str(rel.get("source_column", "")).upper()
+            tc  = str(rel.get("target_column", "")).upper()
+            if not (tgt and sc and tc) or tgt not in mdl:
+                continue
+            if str(rel.get("type", "")).startswith("N:") or rel.get("type") in ("N:1", "1:1"):
+                lines.append(
+                    f"ALTER TABLE {tname} ADD CONSTRAINT FK_{tname}_{tgt} "
+                    f"FOREIGN KEY ({sc}) REFERENCES {tgt} ({tc}){_sql_terminator(engine).rstrip()}"
+                )
+                n_fk += 1
+    if n_fk:
+        lines.append("")
+
+    # índices
+    for tname in sorted(mdl):
+        for idx in (mdl[tname].get("indexes") or []):
+            icols = [c.upper() for c in (idx.get("columns") or [])]
+            if not icols:
+                continue
+            uniq = "UNIQUE " if idx.get("unique") else ""
+            iname = idx.get("name") or f"IX_{tname}_{'_'.join(icols)}"
+            lines.append(f"CREATE {uniq}INDEX {iname} ON {tname} ({', '.join(icols)}){_sql_terminator(engine).rstrip()}")
+            n_idx += 1
+
+    out_dir = _scripts_dir(workspace)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{proyecto}-ddl.sql"
+    text = "\n".join(lines).rstrip() + "\n"
+    out_file.write_text(text, encoding="utf-8")
+    return {
+        "success": True, "engine": engine, "path": str(out_file),
+        "tables": n_stmt, "foreign_keys": n_fk, "indexes": n_idx, "lines": text.count("\n"),
+    }
+
+
+def _idempotent_add_col(engine: str, table: str, schema: str, col: str, ddl_type: str, nullable: bool) -> str:
+    null_kw = "" if nullable else " NOT NULL"
+    if engine == "ORACLE":
+        return (
+            "DECLARE v_c NUMBER;\n"
+            "BEGIN\n"
+            f"  SELECT COUNT(*) INTO v_c FROM ALL_TAB_COLUMNS\n"
+            f"   WHERE TABLE_NAME = '{table}' AND COLUMN_NAME = '{col}' AND OWNER = '{schema}';\n"
+            "  IF v_c = 0 THEN\n"
+            f"    EXECUTE IMMEDIATE 'ALTER TABLE {table} ADD ({col} {ddl_type}{null_kw})';\n"
+            "  END IF;\n"
+            "END;\n/"
+        )
+    return (
+        f"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS\n"
+        f"               WHERE TABLE_NAME = '{table}' AND COLUMN_NAME = '{col}')\n"
+        f"    ALTER TABLE {table} ADD {col} {ddl_type}{('' if nullable else ' NOT NULL')};\nGO"
+    )
+
+
+def _generate_migration_impl(workspace: str) -> dict:
+    cmp = _compare_model_impl(workspace)
+    if not cmp.get("success"):
+        return cmp
+    ctx = _bd_ctx(workspace)
+    engine = cmp["engine"]
+    schema = cmp["schema"]
+    model = _load_model(ctx["model_path"]) or {}
+    mdl = _model_tables(model)
+
+    lines = [
+        f"-- Migracion modelo -> BD para {_proyecto(workspace)}",
+        f"-- Motor: {engine}. Idempotente (references/bd.md). Revisar antes de ejecutar en produccion.",
+        "",
+    ]
+    n = 0
+
+    for tname in cmp["tables_only_in_model"]:
+        tdef = mdl.get(tname, {})
+        cols = tdef.get("columns") or {}
+        coldefs = []
+        for cname, cdef in cols.items():
+            nc = _norm_col(cdef)
+            coldefs.append(f"    {cname.upper():<32} {_ddl_type(nc, engine)}{'' if nc['nullable'] else ' NOT NULL'}")
+        pk = _pk_cols(tdef)
+        body = ",\n".join(coldefs)
+        if pk:
+            body += f",\n    CONSTRAINT PK_{tname} PRIMARY KEY ({', '.join(pk)})"
+        if engine == "ORACLE":
+            lines.append(
+                "DECLARE v_c NUMBER;\nBEGIN\n"
+                f"  SELECT COUNT(*) INTO v_c FROM ALL_TABLES WHERE TABLE_NAME = '{tname}' AND OWNER = '{schema}';\n"
+                "  IF v_c = 0 THEN EXECUTE IMMEDIATE '\n"
+                f"CREATE TABLE {tname} (\n{body}\n)';\n  END IF;\nEND;\n/"
+            )
+        else:
+            lines.append(
+                f"IF OBJECT_ID(N'{schema or 'dbo'}.{tname}', N'U') IS NULL\n"
+                f"CREATE TABLE {tname} (\n{body}\n);\nGO"
+            )
+        lines.append("")
+        n += 1
+
+    for tname, ch in cmp["tables_changed"].items():
+        tdef = mdl.get(tname, {})
+        cols = tdef.get("columns") or {}
+        for cname in ch["columns_only_in_model"]:
+            nc = _norm_col(cols.get(cname, {}))
+            lines.append(_idempotent_add_col(engine, tname, schema, cname, _ddl_type(nc, engine), nc["nullable"]))
+            lines.append("")
+            n += 1
+        for mism in ch["type_mismatches"]:
+            cname = mism["column"]
+            nc = _norm_col(cols.get(cname, {}))
+            verb = "MODIFY" if engine == "ORACLE" else "ALTER COLUMN"
+            paren = f"({cname} {_ddl_type(nc, engine)})" if engine == "ORACLE" else f"{cname} {_ddl_type(nc, engine)}"
+            lines.append(f"-- REVISAR: cambio de tipo en {tname}.{cname} — {', '.join(mism['diffs'])}")
+            lines.append(f"ALTER TABLE {tname} {verb} {paren};{'' if engine=='ORACLE' else chr(10)+'GO'}")
+            lines.append("")
+            n += 1
+        for cname in ch["columns_only_in_db"]:
+            lines.append(f"-- Columna en BD y no en el modelo: {tname}.{cname}")
+            lines.append(f"-- ALTER TABLE {tname} DROP COLUMN {cname};  -- descomentar solo si es seguro")
+            lines.append("")
+
+    out_dir = _scripts_dir(workspace)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{_proyecto(workspace)}-migration.sql"
+    text = "\n".join(lines).rstrip() + "\n"
+    out_file.write_text(text, encoding="utf-8")
+    return {
+        "success": True, "engine": engine, "path": str(out_file), "statements": n,
+        "tables_created": len(cmp["tables_only_in_model"]),
+        "tables_altered": len(cmp["tables_changed"]),
+        "drift": cmp["drift"],
+    }
+
+
+def _render_erd_impl(workspace: str) -> dict:
+    ctx = _bd_ctx(workspace)
+    if "error" in ctx:
+        return {"success": False, "error": ctx["error"]}
+    if not ctx["model_path"]:
+        return {"success": False, "error": "model_path no configurado"}
+    model = _load_model(ctx["model_path"])
+    if model is None:
+        return {"success": False, "error": f"Modelo BD no encontrado: {ctx['model_path']}."}
+    mdl = _model_tables(model, include_hidden=True)
+    proyecto = _proyecto(workspace)
+
+    def esc(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    mer = ["erDiagram"]
+    rel_count = 0
+    for tname in sorted(mdl):
+        tdef = mdl[tname]
+        mer.append(f"    {tname} {{")
+        for cname, cdef in (tdef.get("columns") or {}).items():
+            nc = _norm_col(cdef)
+            tag = "PK" if nc["pk"] else ""
+            mer.append(f"        {nc['type_base'] or 'X'} {cname.upper()} {tag}".rstrip())
+        mer.append("    }")
+    for tname in sorted(mdl):
+        for rel in (mdl[tname].get("relations") or []):
+            tgt = str(rel.get("target_table", "")).upper()
+            if tgt not in mdl:
+                continue
+            card = {"1:N": "||--o{", "N:1": "}o--||", "1:1": "||--||", "N:M": "}o--o{"}.get(rel.get("type", ""), "||--o{")
+            mer.append(f"    {tname} {card} {tgt} : \"{esc(rel.get('source_column',''))}\"")
+            rel_count += 1
+
+    html = f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>ERD {esc(proyecto)}</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>body{{font-family:system-ui,Segoe UI,sans-serif;margin:1.5rem;background:#fafafa}}
+h1{{font-size:1.1rem}} .meta{{color:#666;font-size:.85rem;margin-bottom:1rem}}
+.mermaid{{background:#fff;border:1px solid #ddd;border-radius:6px;padding:1rem;overflow:auto}}</style>
+</head><body>
+<h1>ERD — {esc(proyecto)}</h1>
+<div class="meta">{len(mdl)} tablas · {rel_count} relaciones · motor {esc(_model_engine(model, ctx))} · generado {__import__('datetime').datetime.now():%Y-%m-%d %H:%M}</div>
+<pre class="mermaid">
+{chr(10).join(mer)}
+</pre>
+<script>mermaid.initialize({{startOnLoad:true,er:{{layoutDirection:'LR'}}}});</script>
+</body></html>"""
+
+    out_dir = Path(workspace) / "BD"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{proyecto}-erd.html"
+    out_file.write_text(html, encoding="utf-8")
+    try:
+        os.startfile(str(out_file))  # noqa: S606 — abrir en navegador (Windows)
+        opened = True
+    except Exception:
+        opened = False
+    return {"success": True, "path": str(out_file), "table_count": len(mdl), "relation_count": rel_count, "opened": opened}
+
+
+_DALC_FROM_RE = re.compile(r"\bFROM\s+([A-Za-z_][\w$#]*)\s+(?:AS\s+)?([A-Za-z_]\w*)", re.I)
+_DALC_JOIN_RE = re.compile(r"\bJOIN\s+([A-Za-z_][\w$#]*)\s+(?:AS\s+)?([A-Za-z_]\w*)\s+ON\s+(.+?)(?:\bWHERE\b|\bJOIN\b|\bGROUP\b|\bORDER\b|$)", re.I | re.S)
+_DALC_EQ_RE   = re.compile(r"([A-Za-z_]\w*)\.([A-Za-z_][\w$#]*)\s*=\s*([A-Za-z_]\w*)\.([A-Za-z_][\w$#]*)")
+
+
+def _analyze_dalc_impl(workspace: str, sln_path: str = "") -> dict:
+    ctx = _bd_ctx(workspace)
+    if "error" in ctx:
+        return {"success": False, "error": ctx["error"]}
+    if not ctx["model_path"]:
+        return {"success": False, "error": "model_path no configurado"}
+    model = _load_model(ctx["model_path"])
+    if model is None:
+        return {"success": False, "error": f"Modelo BD no encontrado: {ctx['model_path']}."}
+
+    roots = []
+    if sln_path:
+        scope = _get_scope(sln_path)
+        for d in (scope.get("scope_dirs") or []):
+            p = Path(d)
+            roots.append(p if p.is_absolute() else Path(workspace) / d)
+    if not roots:
+        roots = [Path(workspace)]
+
+    dalc_files = []
+    for root in roots:
+        if root.exists():
+            dalc_files += [f for f in root.rglob("*.cs") if re.search(r"dalc", f.name, re.I)]
+    dalc_files = sorted(set(dalc_files))
+
+    known = {t.upper() for t in (model.get("tables") or {})}
+    found: dict = {}  # (src_tbl, src_col, tgt_tbl, tgt_col) -> source_file
+
+    for f in dalc_files:
+        try:
+            txt = f.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for sql in re.findall(r'"([^"]*\bFROM\b[^"]*)"', txt, re.I) + re.findall(r'@"([^"]*\bFROM\b[^"]*)"', txt, re.I):
+            alias2tbl = {a.upper(): t.upper() for t, a in _DALC_FROM_RE.findall(sql)}
+            for jt, ja, oncond in _DALC_JOIN_RE.findall(sql):
+                alias2tbl[ja.upper()] = jt.upper()
+                for a1, c1, a2, c2 in _DALC_EQ_RE.findall(oncond):
+                    t1, t2 = alias2tbl.get(a1.upper()), alias2tbl.get(a2.upper())
+                    if t1 and t2 and t1 != t2 and t1 in known and t2 in known:
+                        found[(t1, c1.upper(), t2, c2.upper())] = str(f)
+
+    tables = model.setdefault("tables", {})
+    # index de tablas por nombre real (respetando el casing del modelo)
+    real_name = {k.upper(): k for k in tables}
+    added = 0
+    for (t1, c1, t2, c2), src in found.items():
+        key = real_name.get(t1)
+        if not key:
+            continue
+        rels = tables[key].setdefault("relations", [])
+        dup = any(
+            str(r.get("target_table", "")).upper() == t2
+            and str(r.get("source_column", "")).upper() == c1
+            and str(r.get("target_column", "")).upper() == c2
+            for r in rels
+        )
+        if dup:
+            continue
+        rels.append({
+            "target_table": real_name.get(t2, t2),
+            "source_column": c1, "target_column": c2,
+            "type": "N:1", "inferred_from": "JoinClause", "confidence": "low",
+            "source_file": src, "source": "dalc",
+        })
+        added += 1
+
+    if added:
+        from datetime import datetime
+        model["updated_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        _write_model_json(ctx["model_path"], model)
+
+    return {
+        "success": True, "dalcs_scanned": len(dalc_files),
+        "relations_found": len(found), "relations_added": added,
+        "model_path": str(ctx["model_path"]),
+        "note": "Relaciones inferidas con confidence:low — revisar antes de fiarse.",
+    }
+
+
+def _export_dmd_impl(workspace: str) -> dict:
+    """Exporta a Oracle Data Modeler .dmd (XML). Formato mínimo — tablas, columnas, PK, FK."""
+    ctx = _bd_ctx(workspace)
+    if "error" in ctx:
+        return {"success": False, "error": ctx["error"]}
+    if not ctx["model_path"]:
+        return {"success": False, "error": "model_path no configurado"}
+    model = _load_model(ctx["model_path"])
+    if model is None:
+        return {"success": False, "error": f"Modelo BD no encontrado: {ctx['model_path']}."}
+    mdl = _model_tables(model, include_hidden=True)
+    proyecto = _proyecto(workspace)
+
+    def esc(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+    tab_ids, col_ids = {}, {}
+    i = 0
+    for tname in sorted(mdl):
+        i += 1
+        tab_ids[tname] = f"TAB{i:04d}"
+        for j, cname in enumerate((mdl[tname].get("columns") or {}), 1):
+            col_ids[(tname, cname.upper())] = f"C{i:04d}{j:03d}"
+
+    parts = ['<?xml version="1.0" encoding="UTF-8" ?>', f'<model name="{esc(proyecto)}">', '  <relationalModels>',
+             '    <relationalModel id="RM0001">', '      <tables>']
+    for tname in sorted(mdl):
+        tdef = mdl[tname]
+        parts.append(f'        <table id="{tab_ids[tname]}" name="{esc(tname)}">')
+        parts.append('          <columns>')
+        pk = []
+        for cname, cdef in (tdef.get("columns") or {}).items():
+            nc = _norm_col(cdef)
+            cid = col_ids[(tname, cname.upper())]
+            if nc["pk"]:
+                pk.append(cid)
+            params = str(nc["length"]) if nc["length"] else ""
+            parts.append(
+                f'            <column id="{cid}" name="{esc(cname.upper())}" dataTypeName="{esc(nc["type_base"])}" '
+                f'dataTypeParameters="{params}" mandatory="{str(not nc["nullable"]).lower()}" '
+                f'primaryKey="{str(nc["pk"]).lower()}"><comment>{esc(cdef.get("description",""))}</comment></column>'
+            )
+        parts.append('          </columns>')
+        if pk:
+            parts.append('          <primaryKey>')
+            parts += [f'            <primaryKeyColumn columnID="{c}"/>' for c in pk]
+            parts.append('          </primaryKey>')
+        parts.append(f'          <comment>{esc(tdef.get("description",""))}</comment>')
+        parts.append('        </table>')
+    parts.append('      </tables>')
+
+    parts.append('      <fkAssociations>')
+    fk = 0
+    for tname in sorted(mdl):
+        for rel in (mdl[tname].get("relations") or []):
+            tgt = str(rel.get("target_table", "")).upper()
+            sc  = (tname, str(rel.get("source_column", "")).upper())
+            tc  = (tgt, str(rel.get("target_column", "")).upper())
+            if tgt in tab_ids and sc in col_ids and tc in col_ids:
+                fk += 1
+                parts.append(
+                    f'        <fkAssociation id="FK{fk:04d}" name="FK_{esc(tname)}_{esc(tgt)}" '
+                    f'referredTableID="{tab_ids[tgt]}" referringTableID="{tab_ids[tname]}">'
+                    f'<fkAssociationColumns><fkAssociationColumn referredColumnID="{col_ids[tc]}" '
+                    f'referringColumnID="{col_ids[sc]}"/></fkAssociationColumns></fkAssociation>'
+                )
+    parts.append('      </fkAssociations>')
+    parts += ['    </relationalModel>', '  </relationalModels>', '</model>']
+
+    out_dir = Path(workspace) / "BD"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{proyecto}.dmd"
+    out_file.write_text("\n".join(parts) + "\n", encoding="utf-8")
+    return {"success": True, "path": str(out_file), "table_count": len(mdl), "fk_count": fk,
+            "note": "Formato .dmd mínimo — Oracle Data Modeler puede pedir reconciliación al importar."}
+
+
 @mcp.tool(description="Parsea .sln → scope_dirs, tipo (Batch/Online), workspace. Usar al inicio de cada tarea (paso 2b). Resultado cacheado en proceso.")
 def get_scope(sln_path: str) -> str:
     return json.dumps(_get_scope(sln_path), ensure_ascii=False, separators=(",",":"))
@@ -665,10 +1255,10 @@ def db_query(workspace: str, sql: str, max_rows: int = 200) -> str:
     }, ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Compara model.json con esquema real BD → tablas nuevas/eliminadas, columnas añadidas/eliminadas y columnas con tipo o nullable distinto (modified_columns). Usar para detectar drift completo.")
+@mcp.tool(description="Compara model.json con el esquema real de la BD (motor de XMLConfig) → tablas/columnas solo en el modelo, solo en BD, y con tipo/longitud/nullable distinto. Respeta visible:false. Nativa Python.")
 def compare_model(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("compare-model.ps1", workspace), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_compare_model_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Extrae controles AIS de .aspx con textos para registrar en RIDIOMA y RCONTROLES.")
@@ -682,10 +1272,10 @@ def log_execution(workspace: str, solution: str, task: str, status: str = "succe
     return json.dumps(_run_ps("log-execution.ps1", workspace, solution, task, "-Status", status, "-Agents", agents), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Scripts SQL migración desde drift modelo→BD: CREATE TABLE+PK+FK+INDEX (tablas nuevas), ALTER TABLE ADD (columnas nuevas), ALTER TABLE MODIFY (tipo/nullable distinto), DROP COLUMN comentado (columnas en BD no en modelo).")
+@mcp.tool(description="Script SQL idempotente modelo→BD en el dialecto de XMLConfig: CREATE TABLE (guardado), ALTER TABLE ADD (guardado por ALL_TAB_COLUMNS/INFORMATION_SCHEMA), MODIFY marcado -- REVISAR, DROP COLUMN comentado. Escribe C:\\AIS\\<proy>\\scripts\\<proy>-migration.sql. Nativa Python.")
 def generate_migration(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("generate-migration.ps1", workspace), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_generate_migration_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Historial commits SVN → revisión, autor, fecha, mensaje. solution filtra por texto en mensaje.")
@@ -890,19 +1480,16 @@ def check_env(workspace: str) -> str:
     return json.dumps(_run_ps("check-env.ps1", workspace, _proyecto(workspace)), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Genera DDL SQL desde el modelo BD → escribe C:\\AIS\\<proyecto>\\scripts\\<proyecto>-ddl-<motor>.sql. Devuelve ruta y nº líneas — el SQL no entra en contexto.")
-def generate_sql(workspace: str, motor: str = "") -> str:
+@mcp.tool(description="Genera DDL SQL (CREATE TABLE + PK + FK + índices) desde el modelo BD en el dialecto de XMLConfig — Oracle usa VARCHAR2(n CHAR). Escribe C:\\AIS\\<proyecto>\\scripts\\<proyecto>-ddl.sql. Sin argumento de motor (un proyecto = una BD). El SQL no entra en contexto. Nativa Python.")
+def generate_sql(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    args = [workspace, "-Proyecto", _proyecto(workspace)]
-    if motor:
-        args += ["-Motor", motor]
-    return json.dumps(_run_ps("generate-sql.ps1", *args), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_generate_sql_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Exporta modelo BD a Oracle Data Modeler (.dmd) → escribe BD/<proyecto>.dmd. Devuelve ruta y nº tablas — el XML no entra en contexto.")
+@mcp.tool(description="Exporta el modelo BD a Oracle Data Modeler (.dmd XML mínimo: tablas, columnas, PK, FK) → <workspace>\\BD\\<proyecto>.dmd. El XML no entra en contexto. Nativa Python.")
 def export_dmd(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("export-dmd.ps1", workspace, "-Proyecto", _proyecto(workspace)), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_export_dmd_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description=(
@@ -925,19 +1512,16 @@ def sync_indexes(workspace: str) -> str:
     return json.dumps(_sync_indexes_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Infiere relaciones entre tablas analizando código DALC (JOINs, WHERE cruzados). Actualiza el modelo JSON. sln_path opcional para limitar scope.")
+@mcp.tool(description="Infiere relaciones entre tablas analizando 'JOIN ... ON a.X = b.Y' en el SQL embebido de los DALC (*Dalc*.cs). Añade al modelo con confidence:low; no toca source:manual. sln_path opcional acota el scope. Nativa Python.")
 def analyze_dalc(workspace: str, sln_path: str = "") -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    args = [workspace, _proyecto(workspace)]
-    if sln_path:
-        args += ["-SolutionPath", sln_path]
-    return json.dumps(_run_ps("analyze-dalc.ps1", *args), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_analyze_dalc_impl(workspace, sln_path), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Genera ERD HTML del modelo BD y lo abre en el navegador. Devuelve ruta y nº de tablas — no carga el modelo en contexto.")
+@mcp.tool(description="Genera un ERD HTML (mermaid erDiagram) del modelo BD y lo abre en el navegador → <workspace>\\BD\\<proyecto>-erd.html. Devuelve ruta y contadores — el modelo no entra en contexto. Nativa Python.")
 def render_erd(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("render-erd.ps1", workspace, "-Proyecto", _proyecto(workspace)), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_render_erd_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Esquema completo (columnas con tipo/nullable/pk, relaciones, índices) de tablas específicas del modelo BD. Evita cargar model.json completo (~180K tokens). tables = coma-separadas.")
@@ -1015,10 +1599,10 @@ def search_code(workspace: str, sln_path: str, pattern: str, file_glob: str = "*
     )
 
 
-@mcp.tool(description="Compara solo tablas específicas del modelo con BD real. Usar post-migración cuando se conocen las tablas modificadas. Evita comparar las 362 tablas completas. tables = coma-separadas.")
+@mcp.tool(description="Compara solo tablas específicas del modelo con la BD real (dialecto de XMLConfig). tables = coma-separadas. Post-migración, cuando se conocen las tablas tocadas. Nativa Python.")
 def compare_model_tables(workspace: str, tables: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    return json.dumps(_run_ps("compare-model.ps1", workspace, "-Tables", tables), ensure_ascii=False, separators=(",",":"))
+    return json.dumps(_compare_model_impl(workspace, tables), ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Índice ligero del modelo BD: {TABLA: [COL1, COL2, ...]}. ~15K tokens vs 180K del modelo completo. Usar para impact analysis, búsqueda de columnas, verificar qué tablas existen.")

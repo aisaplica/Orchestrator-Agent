@@ -217,7 +217,8 @@ Los `.ps1` del propio plugin son caso aparte: siempre UTF-8 **con** BOM (ver `re
 
 # Scope y buenas practicas
 
-- Path trunk: derivado del workspace activo en Claude Code (carpeta hasta `\src\trunk\` inclusive; la raíz varía por máquina)
+- **Siempre en `trunk`, nunca en una rama.** Todo cambio de código de un proyecto se hace sobre `trunk` (el workspace activo). No crear ni cambiar a una rama SVN/Git salvo que el prompt lo pida explícitamente. Si el workspace no está en `trunk` → avisar y detener, no adivinar.
+- Path trunk: derivado del workspace activo en Claude Code (carpeta hasta `trunk` inclusive; la raíz varía por máquina)
 - No modificar codigo fuera del scope de la solucion activa
 - Cambios minimos — no refactors innecesarios
 - No logica de negocio en capa de presentacion
