@@ -8,7 +8,9 @@ Invoke the `orchestrator-skill-full:orchestrator-agent` skill in crear-tests mod
 Usage: /orchestrator-crear-tests <Solution>.sln
 Example: /orchestrator-crear-tests ScacsWeb.sln
 
-After loading the skill (PASO 0 resolves SKILL_DIR), read `$SKILL_DIR\agents\crear-tests.md` inline
-and follow its instructions. Pass `sln_path`, `plugin_root` (SKILL_DIR), and the scope (target
-classes, or pending changes). Creates the test project if missing, then generates unit tests.
+After loading the skill (PASO 0 resolves SKILL_DIR):
+1. If no test project exists, scaffold one: `mcp__orchestrator-workspace__create_test_project(sln_path)`
+   or `hooks/create-test-project.ps1 <sln> -Framework xunit`.
+2. Then read `$SKILL_DIR\agents\test.md` inline and follow it to author and run unit tests for the
+   scope (target classes, or pending changes). Pass `sln_path`, `plugin_root` (SKILL_DIR).
 Relay output verbatim.

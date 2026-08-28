@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.12.0] — 2026-08-28
+
+### Nuevas features — hooks fase 1 (cierra huecos del pipeline)
+
+De los 19 scripts que el MCP server invocaba y no existían, se implementan los 4 críticos:
+
+- `hooks/detect-vcs.ps1` — sube por las carpetas buscando `.svn`/`.git` (sin CLI) → `{vcs,root}`. Lo necesitaban **11 modos** (commit, diff, deshacer, review, analizar, hotspots, release-notes, validar-req, doc-drift + pipeline).
+- `hooks/svn-log.ps1` — historial SVN vía `svn log --xml`, filtro por mensaje, límite. Sin svn CLI → fallback TortoiseSVN.
+- `hooks/test-runner-check.ps1` — detecta proyectos de test en la .sln (nombre / `<IsTestProject>` / paquetes), `dotnet test --logger trx` + parseo TRX → `passed/failed/failures[]/duration_s`. 0 proyectos → `{skipped:true}`. Backend real de `run_tests` (paso 8 del pipeline).
+- `hooks/create-test-project.ps1` — `dotnet new xunit|mstest|nunit` en `tests/<Nombre>` + `dotnet sln add`. Backend real de `create_test_project`.
+
+### Transversal — MCP: fallo explícito en vez de críptico
+
+- `mcp/orchestrator-workspace-server.py` — `_run_ps` comprueba que el `.ps1` exista; si no, devuelve `{"status":"not_implemented","fallback":"<vía manual>"}` (dict `_HOOK_FALLBACKS`) en vez de `{"error":"No output from X.ps1"}`. Cubre las ~14 tools de fase 2/3 aún sin hook.
+
+### Sincronización de docs (drift acumulado)
+
+- `references/hooks.md` — reescrito con estado por hook (✅ implementado / ⚠️ no implementado + fallback / 🐍 impl Python nativa). **Eliminada** la sección "Scripts de utilidad (manuales)" (`scripts/` no existe) y la fila de `skill-trigger.ps1` (inexistente).
+- `docs/plugin-architecture.md` — §2 árbol `agents/` (47 ficheros, ya no lista `tester.md`/`crear-tests.md` inexistentes) y `hooks/` (23 ficheros); §6 "38 tools" → "40" + lista de pendientes.
+- `skills/orchestrator-agent/SKILL.md` — paso 8 apuntaba a `agents/tester.md` y `agents/crear-tests.md` (**inexistentes**); ahora usa `agents/test.md` + `create_test_project`. Tabla de modos: fila "Crear tests" corregida.
+- `commands/orchestrator-crear-tests.md`, `references/testing.md`, `references/mcp.md` — referencias a `crear-tests.md`/`tester.md` corregidas a `test.md`; nota de cobertura de hooks en `mcp.md`.
+
+### Pendiente (fuera de alcance)
+
+Fase 2 (BD/ERD: `compare-model`, `generate-migration`, `generate-sql`, `render-erd`, `analyze-dalc`, `export-dmd`) y fase 3 (`security-scan`, `map-dependencies`, `scan-aspx`, `search-code`, `find-doc-section`, hooks Git). No existe agente de **generación** de tests (`/orchestrator-crear-tests` solo hace andamiaje + `test.md`).
+
+---
+
 ## [1.11.0] — 2026-08-28
 
 ### Nuevas features

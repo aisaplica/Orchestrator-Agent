@@ -36,49 +36,27 @@ orchestrator-skill-full/
 │   └── mantis/
 │       └── SKILL.md         ← ciclo de vida MantisBT
 │
-├── agents/                  ← agentes especializados (leídos inline por las skills)
-│   ├── analyzer.md
+├── agents/                  ← agentes especializados (leídos inline por las skills). 47 ficheros
 │   ├── auditoria.md         ← plantilla de referencia para nuevos agentes
-│   ├── bd.md
-│   ├── build.md
-│   ├── commit-svn.md
-│   ├── comparar-modelo.md
-│   ├── core.md
-│   ├── crear-tests.md
-│   ├── db-env.md
-│   ├── dependencias.md
-│   ├── diff-svn.md
-│   ├── documentar.md
-│   ├── estructura.md
-│   ├── fixer.md
-│   ├── historial.md
-│   ├── idiomas-standalone.md
-│   ├── impacto.md
-│   ├── mantis.md
-│   ├── planner.md
-│   ├── scacs-docs.md
-│   ├── seguridad.md
-│   ├── stats.md
-│   ├── tester.md
-│   ├── validar-entorno.md
-│   ├── validar-requerimiento.md
-│   └── validator.md
+│   ├── planner.md core.md bd.md analyzer.md validator.md fixer.md test.md build.md db-env.md   ← pipeline
+│   ├── idiomas-standalone.md documentar.md   ← pasos condicionales del pipeline
+│   ├── mantis.md            ← inline en pipeline (Mantis #NNNN)
+│   └── ...                  ← resto: uno por modo directo (auditoria, impacto, diff-svn, historial,
+│                                comparar-modelo, comparar-entornos, estructura, commit-svn, stats,
+│                                validar-entorno, validar-requerimiento, seguridad, dependencias,
+│                                scacs-docs, schema, seed, perf, hotspots, dead-code, doc-drift,
+│                                explicar, format, rename, deshacer, migrar, generar-dalc, init,
+│                                sync-indexes, release-notes, log-errores, incidencia, help, dashboard)
 │
 ├── hooks/                   ← scripts PowerShell (fallback de las MCP tools). UTF-8 CON BOM (PS5.1)
-│   ├── batch-build.ps1
-│   ├── check-env.ps1
-│   ├── copy-ais.ps1
-│   ├── edit-ansi.ps1        ← find/replace preservando codificación (ANSI-1252) — sin tool MCP
-│   ├── git-diff-revision.ps1
-│   ├── log-execution.ps1    ← backend real de log_execution + fallback paso 11
-│   ├── mantis-cli.ps1       ← CLI unificado MantisBT read+write
-│   ├── mantis-get-issue.ps1
-│   ├── online-publish.ps1
-│   ├── parse-sln.ps1
-│   ├── svn-add.ps1
-│   ├── svn-diff-revision.ps1
-│   ├── svn-diff.ps1
-│   └── validate-solution.ps1
+│   │                          23 ficheros implementados. NO todas las MCP tools tienen hook —
+│   │                          ver estado (✅/⚠️/🐍) en references/hooks.md
+│   ├── compile-check.ps1 lib-msbuild.ps1 test-runner-check.ps1 create-test-project.ps1
+│   ├── validate-solution.ps1 parse-sln.ps1 find-symbol.ps1 edit-ansi.ps1
+│   ├── get-config.ps1 check-env.ps1 log-execution.ps1 parse-weblog.ps1
+│   ├── detect-vcs.ps1 svn-diff.ps1 svn-log.ps1 svn-diff-revision.ps1 svn-add.ps1 git-diff-revision.ps1
+│   ├── batch-build.ps1 online-publish.ps1 copy-ais.ps1
+│   └── mantis-cli.ps1 mantis-get-issue.ps1   ← usados por agents/mantis.md, no por el MCP
 │
 ├── references/              ← contexto técnico leído por agentes
 │   ├── arquitectura.md
@@ -95,7 +73,8 @@ orchestrator-skill-full/
 │   └── troubleshooting.md
 │
 ├── mcp/
-│   └── orchestrator-workspace-server.py   ← MCP server (38 tools)
+│   └── orchestrator-workspace-server.py   ← MCP server (40 @mcp.tool). Las tools sin hook y sin
+│                                             impl Python nativa devuelven {"status":"not_implemented"}
 │
 ├── runner/
 │   └── runner.ps1           ← runner de acciones de workspace
@@ -212,7 +191,7 @@ name: orchestrator-<nombre>
 | `analyzer` | 6 | Siempre |
 | `validator` | 7 | Siempre |
 | `fixer` | 7b | Solo si validator detecta errores (máx 2 ciclos) |
-| `tester` | 8 | Siempre |
+| `test` | 8 | Siempre — ejecuta `run_tests`; si `skipped` → `create_test_project` y reintenta |
 | `idiomas-standalone` | 8b | Solo proyectos Online con SIControles/SIIdioma |
 | `documentar` | 8c | Solo si planner lo incluyó |
 | `build` | 9 | Siempre |
@@ -233,7 +212,7 @@ name: orchestrator-<nombre>
 | `validar-entorno` | `/orchestrator-env` |
 | `estructura` | `/orchestrator-estructura` |
 | `commit-svn` | `/orchestrator-commit` |
-| `crear-tests` | `/orchestrator-crear-tests` |
+| `test` | `/orchestrator-test`, `/orchestrator-crear-tests` |
 | `db-env` | `/orchestrator-erd` |
 | `stats` | `/orchestrator-stats` |
 | `validar-requerimiento` | `/orchestrator-validar-req` |
@@ -250,7 +229,13 @@ name: orchestrator-<nombre>
 **Nombre del server:** `orchestrator-workspace`
 **Tool prefix:** `mcp__orchestrator-workspace__`
 
-### Tools disponibles (38)
+### Tools disponibles (40)
+
+> No todas tienen hook fallback implementado. `references/hooks.md` marca el estado de cada una:
+> ✅ hook implementado · 🐍 impl Python nativa (sin hook) · ⚠️ ni hook ni impl → devuelve `{"status":"not_implemented","fallback":"..."}`.
+> Pendientes (fase 2/3): `compare_model`, `compare_model_tables`, `generate_migration`, `generate_sql`,
+> `render_erd`, `export_dmd`, `analyze_dalc`, `map_dependencies`, `security_scan`, `scan_aspx`,
+> `search_code`, `find_doc_section`, `git_status`, `git_log`, `git_add`.
 
 | Categoría | Tools |
 |-----------|-------|

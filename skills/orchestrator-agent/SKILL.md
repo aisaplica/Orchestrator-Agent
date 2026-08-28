@@ -177,8 +177,9 @@ Flujo estricto — no saltar pasos. Leer el agente correspondiente en cada etapa
 6. **Analyzer** → `$SKILL_DIR\agents\analyzer.md`
 7. **Validator** → `$SKILL_DIR\agents\validator.md`
    Si FAIL → **Fixer** → `$SKILL_DIR\agents\fixer.md` → volver a paso 7 (máx 2 ciclos)
-8. **Tester** → `$SKILL_DIR\agents\tester.md`
-   Sin proyecto tests → crear automáticamente + generar tests → `$SKILL_DIR\agents\crear-tests.md`
+8. **Tester** → `$SKILL_DIR\agents\test.md`
+   - Ejecuta `mcp__orchestrator-workspace__run_tests(sln_path)` / `hooks/test-runner-check.ps1 <sln>`.
+   - Si devuelve `skipped:true` (sin proyecto de tests) → `mcp__orchestrator-workspace__create_test_project(sln_path)` / `hooks/create-test-project.ps1 <sln> -Framework xunit`, luego generar los tests siguiendo `agents/test.md` y reintentar.
    Si FAIL → detener, no continuar a build
 8b. Scripts idiomas (solo proyectos ScacsWeb Online con tablas SIControles/SIIdioma) — Gate scripts-idiomas ScacsWeb:
    Cubre controles nuevos en `.aspx` (insertar en SIControles: CTFORM, CTMAPEO, CTTIPO, CTTEXTO),
@@ -239,7 +240,7 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Validar entorno | `/orchestrator-env`, "valida entorno", "check entorno" | `$SKILL_DIR\agents\validar-entorno.md` |
 | Estructura | `/orchestrator-estructura`, "estructura de X", "qué proyectos tiene X" | `$SKILL_DIR\agents\estructura.md` |
 | Commit | `/orchestrator-commit`, "commit X.sln", "confirmar cambios" | `detect_vcs` → `$SKILL_DIR\agents\commit-svn.md` |
-| Crear tests | `/orchestrator-crear-tests`, "crea tests para X.sln", "genera tests X" | `$SKILL_DIR\agents\crear-tests.md` |
+| Crear tests | `/orchestrator-crear-tests`, "crea tests para X.sln", "genera tests X" | `create_test_project` / `hooks/create-test-project.ps1` para el andamiaje, luego `$SKILL_DIR\agents\test.md` |
 | ERD / Modelo BD | `/orchestrator-erd`, "actualiza modelo BD", "muestra ERD" | `$SKILL_DIR\agents\db-env.md` |
 | Estadísticas | `/orchestrator-stats`, "estadísticas", "resumen de uso", "cuántas ejecuciones" | `$SKILL_DIR\agents\stats.md` |
 | Validar requerimiento | `/orchestrator-validar-req`, "valida que el commit X cumple", "revisa si lo subido implementa" | `$SKILL_DIR\agents\validar-requerimiento.md` |

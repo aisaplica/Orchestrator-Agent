@@ -3,6 +3,13 @@
 Servidor MCP local. Preferente sobre hooks — más eficiente en tokens.
 Fallback: hook equivalente listado en `references/hooks.md`.
 
+**Cobertura de hooks:** no todas las tools tienen hook fallback. Estado en `references/hooks.md`.
+Las que no tienen ni hook ni impl Python nativa devuelven
+`{"status":"not_implemented","fallback":"<vía manual>"}` — no reintentar, aplicar el fallback.
+Pendientes (fase 2/3): `compare_model`, `compare_model_tables`, `generate_migration`, `generate_sql`,
+`render_erd`, `export_dmd`, `analyze_dalc`, `map_dependencies`, `security_scan`, `scan_aspx`,
+`search_code`, `find_doc_section`, `git_status`, `git_log`, `git_add`.
+
 | Tool | Uso |
 |------|-----|
 | `ping()` | Health check — hooks_dir, hooks_found, svn_cli, git_cli, python version |

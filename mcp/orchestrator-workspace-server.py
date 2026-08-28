@@ -15,6 +15,25 @@ from mcp.server.fastmcp import FastMCP
 HOOKS_DIR  = Path(__file__).parent.parent / "hooks"
 CACHE_DIR  = Path.home() / ".claude" / "cache" / "rs-models"
 
+# Hooks aún no implementados en este build: fallback que el agente debe usar en su lugar.
+# Al implementar el hook correspondiente, quitarlo de este dict.
+_HOOK_FALLBACKS = {
+    "search-code.ps1":     "Usar Grep/Glob restringido a scope_dirs (get_scope).",
+    "scan-aspx.ps1":       "Releer el diff .aspx/.aspx.cs para la lista de controles (ver agents/core.md).",
+    "find-doc-section.ps1": "Grep del keyword en docs/scacs/.",
+    "compare-model.ps1":   "Sin comparación de modelo en este build (fase 2). Confirmar tablas puntuales con db_query.",
+    "generate-migration.ps1": "Familia BD/ERD no implementada en este build (fase 2).",
+    "generate-sql.ps1":    "Familia BD/ERD no implementada en este build (fase 2).",
+    "render-erd.ps1":      "Familia BD/ERD no implementada en este build (fase 2).",
+    "export-dmd.ps1":      "Familia BD/ERD no implementada en este build (fase 2).",
+    "analyze-dalc.ps1":    "Familia BD/ERD no implementada en este build (fase 2).",
+    "map-dependencies.ps1": "Análisis de dependencias entre soluciones no disponible (fase 3).",
+    "security-scan.ps1":   "Scan de seguridad no implementado (fase 3). Revisar SQLi / credenciales / XSS en el diff a mano.",
+    "git-status.ps1":      "Los repos ScacsWeb usan SVN: usar svn_status. Para Git real, invocar el CLI git directamente.",
+    "git-log.ps1":         "Los repos ScacsWeb usan SVN: usar svn_log. Para Git real, invocar el CLI git directamente.",
+    "git-add.ps1":         "Los repos ScacsWeb usan SVN: usar svn_add. Para Git real, invocar el CLI git directamente.",
+}
+
 mcp = FastMCP("orchestrator-workspace")
 
 _model_cache:  dict[str, tuple[float, dict]] = {}  # path → (mtime, model) — en proceso
@@ -87,6 +106,13 @@ def _load_model(model_path: Path) -> dict | None:
 
 def _run_ps(script: str, *args: str) -> dict:
     ps_path = HOOKS_DIR / script
+    if not ps_path.is_file():
+        return {
+            "status": "not_implemented",
+            "error": f"El hook '{script}' no está incluido en este build del plugin.",
+            "fallback": _HOOK_FALLBACKS.get(script, "Sin fallback automático — esta acción no está disponible."),
+            "script": script,
+        }
     cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(ps_path), *args]
     result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
     output = (result.stdout or "").strip()

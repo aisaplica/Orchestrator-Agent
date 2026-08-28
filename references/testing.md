@@ -1,6 +1,6 @@
 # Patrones de Test — RS/uCollect
 
-Guía de convenciones para tests en soluciones uCollect/RS. Referenciada por `agents/crear-tests.md`.
+Guía de convenciones para tests en soluciones ScacsWeb. Referenciada por `agents/test.md` (paso 8 del pipeline y `/orchestrator-test` / `/orchestrator-crear-tests`).
 
 ## Framework estándar
 
