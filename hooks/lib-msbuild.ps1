@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Decide con qué compilador construir una .sln — MSBuild de Visual Studio o CLI `dotnet` —

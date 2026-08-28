@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Parsea logs de error de la capa web (NLog/log4net, ELMAH XML, formato AgendaWeb AIS

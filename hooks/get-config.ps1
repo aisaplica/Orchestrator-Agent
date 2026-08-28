@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Lee XMLConfig.xml y devuelve configuración BD como JSON.

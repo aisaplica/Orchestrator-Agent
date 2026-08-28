@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Localiza símbolos C# en scope_dirs. Una sola pasada Select-String multi-patrón.

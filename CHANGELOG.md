@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.1] — 2026-08-28
+
+### Fix
+
+- `hooks/lib-msbuild.ps1`, `hooks/compile-check.ps1`, `hooks/find-symbol.ps1`, `hooks/get-config.ps1`, `hooks/parse-weblog.ps1` — faltaba el BOM UTF-8. Windows PowerShell 5.1 lee los `.ps1` sin BOM como ANSI/CP1252, convirtiendo `—`, `⛔` y las tildes en mojibake. En `lib-msbuild.ps1:163` (`"MSBuild de Visual Studio — $muestra"`) el mojibake del em-dash rompía el parser (`ParseError`), y como `compile-check.ps1` hace dot-source de la librería, el hook de compilación quedaba KO en máquinas con PS 5.1 (fallback a MSBuild directo). Ahora los 5 ficheros llevan BOM, igual que el resto de hooks del plugin.
+
+---
+
 ## [1.10.0] — 2026-08-25
 
 ### Nuevas features
