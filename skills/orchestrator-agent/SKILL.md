@@ -199,8 +199,11 @@ Flujo estricto — no saltar pasos. Leer el agente correspondiente en cada etapa
     - Si se consultó esquema BD → se usó `model.json` vía tools (`get_table_schema`/`sync_model_tables`), no polling de vistas catálogo.
     Si falta cualquiera de estos → completarlo antes de continuar, no reportar éxito.
 11. **Log** OBLIGATORIO — última instrucción siempre, incluso si algún paso falló
-    `mcp__orchestrator-workspace__log_execution(workspace, solution, task, status="success|fail|partial", agents="lista de agentes usados")`
-    Si se omite este paso el historial queda incompleto y `/orchestrator-historial` mostrará datos incorrectos.
+    - Preferente: `mcp__orchestrator-workspace__log_execution(workspace, solution, task, status="success|fail|partial", agents="lista de agentes usados")`
+    - Fallback (MCP no conectado): ejecutar el hook equivalente
+      `powershell -NoProfile -ExecutionPolicy Bypass -File "$SKILL_DIR\hooks\log-execution.ps1" "<workspace>" "<solution>" "<task>" -Status <success|fail|partial> -Agents "<lista,coma,separada>"`
+    ⛔ NUNCA omitir este paso en silencio. Si ni el MCP ni el hook están disponibles, decirlo explícitamente en el output final.
+    Si se omite, el historial queda incompleto y `/orchestrator-historial`, `/orchestrator-stats` y `/orchestrator-dashboard` mostrarán datos incorrectos.
 
 ## Modo Modelo BD (directo)
 

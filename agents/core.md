@@ -98,6 +98,7 @@ Ejecutar el paso `GenerarScriptIncidencia` si el plan del planner lo incluye (pa
 - Analizar solo código relevante, identificar flujo actual.
 - Modificar lo mínimo necesario.
 - NO reescribir módulos completos. NO romper dependencias. NO introducir cambios innecesarios.
+- **Codificación:** los `.cs`/`.aspx` legacy ScacsWeb suelen estar en ANSI/Windows-1252. Edit/Write escriben UTF-8 y **corrompen los acentos** sin error de build. Sobre un fuente ANSI, editar con `$SKILL_DIR\hooks\edit-ansi.ps1 -Path <f> -Search <s> -Replace <r>` (detecta y preserva la codificación). Ver `references/conventions.md` → "Codificación de archivos fuente".
 
 ## Build
 

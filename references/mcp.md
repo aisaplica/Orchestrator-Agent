@@ -25,7 +25,7 @@ Fallback: hook equivalente listado en `references/hooks.md`.
 | `db_query(workspace, sql)` | SELECT directo a BD configurada (solo SELECT) |
 | `compare_model(workspace)` | Diff model.json vs BD real → tablas/columnas nuevas/eliminadas |
 | `scan_aspx(sln_path)` | Extrae controles AIS de .aspx → IDs y textos para RIDIOMA/RCONTROLES |
-| `log_execution(workspace, solution, task, status?, agents?)` | Registra en executions/history.json |
+| `log_execution(workspace, solution, task, status?, agents?)` | Registra la ejecución en `<workspace>\executions\history.json`. Fallback: `hooks/log-execution.ps1` (mismo backend). Paso 11 del pipeline — nunca omitir |
 | `generate_migration(workspace)` | Scripts SQL migración desde drift modelo→BD |
 | `svn_log(workspace, solution?, limit?)` | Historial SVN → revisión, autor, fecha, mensaje |
 | `git_log(workspace, solution?, limit?)` | Historial Git → hash corto, autor, fecha, mensaje. Equivalente Git de `svn_log` |

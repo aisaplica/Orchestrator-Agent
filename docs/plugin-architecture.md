@@ -64,11 +64,13 @@ orchestrator-skill-full/
 │   ├── validar-requerimiento.md
 │   └── validator.md
 │
-├── hooks/                   ← scripts PowerShell (fallback de las MCP tools)
+├── hooks/                   ← scripts PowerShell (fallback de las MCP tools). UTF-8 CON BOM (PS5.1)
 │   ├── batch-build.ps1
 │   ├── check-env.ps1
 │   ├── copy-ais.ps1
+│   ├── edit-ansi.ps1        ← find/replace preservando codificación (ANSI-1252) — sin tool MCP
 │   ├── git-diff-revision.ps1
+│   ├── log-execution.ps1    ← backend real de log_execution + fallback paso 11
 │   ├── mantis-cli.ps1       ← CLI unificado MantisBT read+write
 │   ├── mantis-get-issue.ps1
 │   ├── online-publish.ps1
@@ -104,6 +106,9 @@ orchestrator-skill-full/
     └── scacs/
         └── 00-index.md          ← índice de documentación técnica ScacsWeb
 ```
+
+**Artefactos de runtime (no versionados, fuera del repo del plugin):**
+- `<workspace>\executions\history.json` — historial del pipeline, escrito por `hooks/log-execution.ps1` en el workspace del usuario (no en `$SKILL_DIR`, que se borra al actualizar el plugin). Lo leen `historial`, `stats` y `dashboard`. Tope 500 vivas; excedente en `<workspace>\executions\archive\history-YYYY-MM.json`.
 
 ---
 

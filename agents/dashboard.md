@@ -23,7 +23,7 @@ Invocación directa via `/orchestrator-dashboard`. No forma parte del pipeline.
 # Proceso
 
 1. Resolver SKILL_DIR (per PASO 0 del skill)
-2. Leer `$SKILL_DIR\executions\history.json` con Read tool
+2. Leer `<workspace>\executions\history.json` con Read tool (workspace = cwd de la sesión; lo escribe `hooks/log-execution.ps1` al final de cada pipeline)
 3. Si el fichero no existe o está vacío → informar al usuario:
    "Sin historial de ejecuciones. El historial se genera automáticamente al usar el pipeline."
    Terminar.

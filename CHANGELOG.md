@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.11.0] — 2026-08-28
+
+### Nuevas features
+
+- `hooks/log-execution.ps1` — **CREADO**. Nunca existió: la tool MCP `log_execution` lo invocaba desde siempre (`_run_ps("log-execution.ps1", ...)`) y el paso 11 del pipeline lo daba por hecho, así que el registro de ejecuciones fallaba en silencio (con MCP conectado por script ausente; sin MCP por no haber fallback). Escribe/appendea a `<workspace>\executions\history.json` (array; esquema de `agents/historial.md`), tope 500 vivas + archivo mensual en `executions\archive\history-YYYY-MM.json`. Robusto ante el desenrollado de colecciones de PS5.1 y ante historial corrupto (respalda y sigue).
+- `hooks/edit-ansi.ps1` — **CREADO**. Find/replace (`-Search`/`-Replace`, `-All`, `-Regex`) preservando la codificación original del archivo (BOM / UTF-8 / ANSI-1252). Los `.cs`/`.aspx` legacy ScacsWeb suelen estar en Windows-1252; Edit/Write de Claude Code escriben UTF-8 y corrompen los acentos sin error de build. Sin tool MCP equivalente — los agentes lo invocan por `powershell -File`.
+
+### Fix / sincronización
+
+- `skills/orchestrator-agent/SKILL.md` — paso 11 ahora tiene patrón Preferente/Fallback (MCP `log_execution` → `hooks/log-execution.ps1`) y prohíbe omitirlo en silencio.
+- `references/conventions.md` — nueva sección "Codificación de archivos fuente": regla de no usar Edit/Write sobre fuentes ANSI, usar `edit-ansi.ps1`.
+- `agents/core.md`, `agents/fixer.md` — regla de codificación ANSI añadida.
+- `agents/dashboard.md` — corregida la ruta de `history.json` (`$SKILL_DIR\executions\` → `<workspace>\executions\`, coherente con `historial`/`stats` y con el hecho de que `$SKILL_DIR` se borra al actualizar el plugin).
+- `references/hooks.md`, `references/mcp.md`, `docs/plugin-architecture.md` — documentados los dos hooks nuevos y `executions/` como artefacto de runtime del workspace.
+
+---
+
 ## [1.10.1] — 2026-08-28
 
 ### Fix

@@ -195,6 +195,26 @@ No numeros magicos — usar `AIS.PR.SF.Constantes` o `AIS.PR.SF.CatalogoTipo`.
 
 ---
 
+# Codificación de archivos fuente (CRITICO)
+
+Los fuentes legacy ScacsWeb (`.cs`, `.aspx`, `.ascx`, `.asax`, `.master`, `Web.config`) suelen estar en **Windows-1252 (ANSI) sin BOM**, no en UTF-8.
+
+Las tools **Edit / Write de Claude Code escriben siempre UTF-8**. Aplicarlas sobre un archivo ANSI reescribe todo el fichero y **corrompe los acentos** (`á é í ó ú ñ ¿ ¡` → `Ã¡ Ã© ...`) en comentarios, strings y literales. No hay error de compilación — el fallo aparece en runtime o en pantalla (labels, mensajes, datos).
+
+**Regla:**
+
+1. Antes de editar un fuente, comprobar su codificación (BOM / heurística UTF-8 / ANSI).
+2. Si es ANSI/1252 → **NO usar Edit ni Write**. Editar con:
+   ```
+   powershell -NoProfile -ExecutionPolicy Bypass -File "$SKILL_DIR\hooks\edit-ansi.ps1" -Path "<archivo>" -Search "<texto>" -Replace "<texto>" [-All] [-Regex]
+   ```
+   El hook detecta la codificación real y reescribe con la **misma** (sin añadir BOM).
+3. Archivos nuevos creados por el pipeline (proyecto de tests, scripts SQL, etc.) → UTF-8 normal, sin problema.
+
+Los `.ps1` del propio plugin son caso aparte: siempre UTF-8 **con** BOM (ver `references/troubleshooting.md`).
+
+---
+
 # Scope y buenas practicas
 
 - Path trunk: derivado del workspace activo en Claude Code (carpeta hasta `\src\trunk\` inclusive; la raíz varía por máquina)

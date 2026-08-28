@@ -45,6 +45,10 @@ Ejemplo:
 
 Si no hay fix seguro → `NO SAFE FIX`
 
+## Codificación (CRITICO)
+
+Antes de aplicar un fix a un fuente, comprobar su codificación. Si es ANSI/Windows-1252 (habitual en `.cs`/`.aspx` legacy ScacsWeb) → **NO usar Edit/Write** (corrompen acentos sin error de build). Editar con `$SKILL_DIR\hooks\edit-ansi.ps1 -Path <f> -Search <s> -Replace <r>`. Ver `references/conventions.md` → "Codificación de archivos fuente".
+
 ## Límites
 
 No reescribir módulos. No refactor masivo. No optimizaciones. No cambios funcionales ni de arquitectura.

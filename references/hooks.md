@@ -21,6 +21,7 @@ Scripts PowerShell en `hooks/`. Ejecutar directamente si el MCP no está activo.
 | `hooks/security-scan.ps1` | `<sln_path>` | SQL injection, credenciales hardcodeadas, XSS, input sin validar → findings con severidad |
 | `hooks/map-dependencies.ps1` | `<workspace>` | Mapa dependencias entre soluciones → proyectos compartidos, conflictos NuGet |
 | `hooks/search-code.ps1` | `<workspace> <sln> <pattern> [-Glob *.cs] [-Context 2] [-MaxResults 50]` | Regex en scope garantizado (equivalente a `search_code`) |
+| `hooks/edit-ansi.ps1` | `-Path <archivo> -Search <texto> -Replace <texto> [-All] [-Regex]` | Find/replace preservando la codificación original del archivo (BOM / UTF-8 / ANSI-1252). Para editar `.cs`/`.aspx` legacy ScacsWeb sin corromper acentos — Edit/Write de Claude Code escriben UTF-8 y rompen ANSI. Sin tool MCP equivalente: los agentes lo invocan por `powershell -File`. Ver `references/conventions.md` |
 
 ## BD / Modelo
 
@@ -60,7 +61,7 @@ Scripts PowerShell en `hooks/`. Ejecutar directamente si el MCP no está activo.
 | Script | Parámetros | Descripción |
 |--------|-----------|-------------|
 | `hooks/check-env.ps1` | `<workspace> <proyecto>` | Valida XMLConfig, AIS, dotnet, SVN, Git, modelo BD, docs → `checks[], overall` |
-| `hooks/log-execution.ps1` | `<workspace> <sln> <task> [-Status success\|fail\|partial] [-Agents <lista>]` | Registra en `executions/history.json` (max 500, archiva mensualmente) |
+| `hooks/log-execution.ps1` | `<workspace> <solution> <task> [-Status success\|fail\|partial] [-Agents <lista,coma>]` | Registra la ejecución del pipeline en `<workspace>\executions\history.json` (array; tope 500 vivas, excedente a `executions\archive\history-YYYY-MM.json`). Backend real de la tool MCP `log_execution` y fallback del paso 11 del pipeline |
 | `hooks/scan-aspx.ps1` | `-SlnPath <sln>` | Extrae controles AIS de .aspx → `RIDIOMA/RCONTROLES` inserts |
 | `hooks/skill-trigger.ps1` | (stdin JSON, hook UserPromptSubmit de Claude Code) | Detecta `.sln` en el prompt dentro de workspaces RS e inyecta recordatorio de invocar la skill — no lo ejecutan los agentes |
 
