@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.14.0] — 2026-09-01
+
+### Nueva doc funcional — Workflow (`docs/scacs/04-workflow/`)
+
+Documento funcional `AF - Workflow.docx` (601108-AF-Workflow, v001.002) convertido a MD y
+partido en 4 ficheros temáticos:
+
+- `docs/scacs/04-workflow/workflow-overview.md` — entidades (modelo, etapa, estado, señal, función, objeto base), etapas e `IDFORMULARIO`/`WFRepFormulario`, objeto base (`WFBDObjetoBase` estado actual vs `WFBDResumen` histórico), Centro Visible.
+- `docs/scacs/04-workflow/workflow-conexiones.md` — `WFTransicion`, señal → varios destinos (paralelo), expresiones de activación y `WFBDVariableObjetoBase`, herencia de Centro Visible, conexiones entre modelos, modelo destino `*` (volver al flujo de origen), etapa destino inexistente → fin de flujo.
+- `docs/scacs/04-workflow/workflow-funciones.md` — funciones de activación y de finalización, manejo de excepciones, cambio de señal (`DataSet` `RESULT`/`SendSignal` + `WFRepSenyalesFuncion`), resolución de la transición.
+- `docs/scacs/04-workflow/workflow-tablas.md` — mapa de todas las tablas `WF*` con rol y claves.
+- `docs/scacs/00-index.md` — nueva sección `## Workflow`.
+- `docs/scacs/99-glosario.md` — términos de workflow (Modelo, Etapa, Señal, Objeto base, Expresión de activación, Centro Visible, `WFTransicion`, `SendSignal`).
+
+Los 3 diagramas EMF del `.docx` no son convertibles; su contenido está descrito en texto.
+
+### Nuevo modo directo — `/orchestrator-workflow`
+
+- `agents/workflow.md` — consultor funcional del Workflow. Cruza `docs/scacs/04-workflow/` con el esquema real de las tablas `WF*` (`get_table_schema`). Solo lectura; nunca inventa comportamiento. `description` con triggers fuertes para auto-dispatch cuando se pregunta por workflow o hay un Mantis de workflow.
+- `skills/workflow/SKILL.md` — skill con PASO 0 que lee el agente inline.
+- `commands/orchestrator-workflow.md` — slash command.
+- `skills/orchestrator-agent/SKILL.md` — fila en tabla `# Modos directos`.
+- `agents/planner.md` — paso 2 (ReadDocumentation): si el cambio/Mantis menciona workflow, tablas `WF*`, etapa, transición, señal o modelo de workflow → invocar el agente `workflow` para contexto funcional antes de planificar.
+- `README.md` — comando añadido a "Utilidades".
+
+---
+
 ## [1.13.0] — 2026-08-28
 
 ### Nuevas features — fase 2: tools BD/ERD (nativas Python)

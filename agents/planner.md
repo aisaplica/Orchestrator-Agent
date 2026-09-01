@@ -29,6 +29,11 @@ Si la descripción del cambio menciona una pantalla por **nombre funcional** (ej
    - `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs, tipo, workspace
    - Leer `references/conventions.md` (naming, reglas C#, excepciones, SQL, scope) — el plan debe respetar estas restricciones desde el paso 1, no corregirlas después en validator/fixer
 2. **ReadDocumentation** — leer índices técnico + funcional (omitir si cambio trivial)
+   - Si el cambio o el Mantis menciona **workflow**, tablas `WF*` (`WFModelo`, `WFEtapa`,
+     `WFTransicion`, `WFBDObjetoBase`, `WFBDResumen`, `WFRepFormulario`, `WFBDVariableObjetoBase`,
+     `WFRepSenyalesFuncion`...), **etapa**, **transición**, **señal** o **modelo de workflow**
+     → invocar el agente `workflow` (o leer `docs/scacs/04-workflow/`) para el contexto funcional
+     antes de planificar. No asumir el comportamiento del flujo.
 3. **AnalyzeCode** — solo dentro del scope permitido
 4. **ModifyCode** — implementar el cambio mínimo necesario
 5. **CheckModel** — si involucra tablas BD: seguir el orden de consulta de `core.md` "Modelo BD" (search_model → get_model_index → get_table_schema).

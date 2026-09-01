@@ -120,6 +120,7 @@ El servidor MCP (`orchestrator-workspace`) arranca automaticamente al primer uso
 |---------|-------------|
 | `/orchestrator-dashboard` | Dashboard HTML con KPIs y ultimas ejecuciones del pipeline |
 | `/orchestrator-documentar` | Genera documentacion de una clase/modulo en formato ScacsWeb |
+| `/orchestrator-workflow` | Consulta la documentacion funcional del Workflow (etapas, señales, transiciones, tablas WF*), cruzada con el esquema real |
 | `/orchestrator-idiomas` | Gestion de literales multiidioma |
 | `/orchestrator-help` | Renderiza README y CHANGELOG del plugin como pagina HTML |
 

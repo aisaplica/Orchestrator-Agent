@@ -249,6 +249,7 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Seguridad | `/orchestrator-security`, "revisa seguridad de X.sln", "busca vulnerabilidades" | `$SKILL_DIR\agents\seguridad.md` |
 | Dependencias | `/orchestrator-deps`, "qué usa X", "mapa dependencias", "impacto de cambiar X" | `$SKILL_DIR\agents\dependencias.md` |
 | Docs ScacsWeb | `/orchestrator-scacs-docs`, "documentación técnica scacs" | `$SKILL_DIR\agents\scacs-docs.md` |
+| Workflow | `/orchestrator-workflow`, "cómo funciona el workflow", "error de workflow", "qué es la etapa X", "tabla WF*" | `$SKILL_DIR\agents\workflow.md` |
 | Mantis | `/orchestrator-mantis NNNN [Solucion.sln]`, "mantis NNNN" | `$SKILL_DIR\agents\mantis.md` |
 | Review | `/orchestrator-review`, "revisa el diff de X.sln", "code review X.sln" | `detect_vcs` → `$SKILL_DIR\agents\review.md` |
 | Explicar | `/orchestrator-explicar`, "explica la clase X", "qué hace el método X en Y.sln" | `$SKILL_DIR\agents\explicar.md` |

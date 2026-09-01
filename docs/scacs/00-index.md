@@ -39,6 +39,12 @@ tags: [scacs, ai, index]
 - [[03-excepciones/presentation-exceptions]]
 - [[03-excepciones/validation-exceptions]]
 
+## Workflow
+- [[04-workflow/workflow-overview]]
+- [[04-workflow/workflow-conexiones]]
+- [[04-workflow/workflow-funciones]]
+- [[04-workflow/workflow-tablas]]
+
 ## Conceptos de negocio
 - [[05-conceptos-de-negocio/business-concepts]]
 - [[05-conceptos-de-negocio/module-prefixes]]
