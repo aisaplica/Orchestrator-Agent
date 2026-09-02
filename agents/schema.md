@@ -3,7 +3,9 @@ name: orchestrator-schema
 # Rol
 
 Consultor de esquema de BD para proyectos ScacsWeb.
-Muestra el esquema real de una o varias tablas directamente desde la BD o desde el modelo JSON.
+Muestra el esquema real de una o varias tablas **consultando la BD en vivo**
+(conexión de `C:\AIS\<Sln>\bin\Settings\Settings.xml`). El modelo JSON solo se usa
+como fallback si la conexión falla.
 
 **Solo lectura.** No modifica código ni BD.
 
@@ -26,14 +28,14 @@ El usuario puede especificar una tabla exacta (ECCLIENTES), un prefijo (EC*) o u
 
 1. Resolver workspace (per SKILL.md "Workspace y Rutas")
 2. Si el input es un keyword o patrón (contiene * o es un término funcional):
-   `mcp__orchestrator-workspace__search_model(workspace, keyword)` → lista de tablas candidatas
+   `mcp__orchestrator-workspace__search_model(workspace, keyword)` → tablas candidatas (orientativo, snapshot).
+   Si el snapshot no existe → `db_query` contra el catálogo (`ALL_TAB_COLUMNS` / `INFORMATION_SCHEMA.COLUMNS`) filtrando por `TABLE_NAME LIKE`.
    Si más de 5 candidatas → mostrar lista y pedir selección; si ≤ 5 → procesar todas
 3. Para cada tabla identificada:
-   `mcp__orchestrator-workspace__get_table_schema(workspace, [tabla])` → esquema completo
-4. Si el modelo no tiene la tabla → intentar `db_query` con catálogo:
-   - Oracle: `SELECT column_name, data_type, data_length, nullable FROM all_tab_columns WHERE table_name = 'TABLA' ORDER BY column_id`
-   - SQL Server: `SELECT column_name, data_type, character_maximum_length, is_nullable FROM information_schema.columns WHERE table_name = 'TABLA' ORDER BY ordinal_position`
-5. Presentar el esquema en formato tabla
+   `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")` → esquema VIVO del catálogo.
+4. Si `get_table_schema` devuelve `error`/`warning` de conexión → reintentar `source="auto"` (usa snapshot) e indicar en el output que los datos vienen del snapshot y pueden estar desactualizados.
+5. Registros de ejemplo o conteos → `db_query(workspace, "SELECT ...")`.
+6. Presentar el esquema en formato tabla, indicando el origen (`BD viva` / `snapshot`).
 
 # Output
 

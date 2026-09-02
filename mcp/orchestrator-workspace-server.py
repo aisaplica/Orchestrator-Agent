@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -41,9 +42,25 @@ _git_cli: bool | None = None                        # None = no comprobado aún
 
 
 def _get_config(workspace: str) -> dict:
-    """get-config.ps1 con cache en proceso — evita spawn PS en cada tool call."""
+    """Config BD del workspace SIN password — motor/datasource/schema/user/catalog/model_path.
+    Fuente canónica: C:\\AIS\\<Sln>\\bin\\Settings\\Settings.xml (ver _settings_conn).
+    Cache en proceso — evita reparsear en cada tool call."""
     if workspace not in _config_cache:
-        _config_cache[workspace] = _run_ps("get-config.ps1", workspace)
+        c = _settings_conn(workspace)
+        if "error" in c:
+            return {"error": c["error"]}  # no cachear — la solución puede publicarse después
+        else:
+            _config_cache[workspace] = {
+                "motor":         c["motor"],
+                "datasource":    c["datasource"],
+                "schema":        c["schema"],
+                "user":          c["user"],
+                "catalog":       c.get("catalog", ""),
+                "model_path":    c["model_path"],
+                "sln":           c["sln"],
+                "environments":  c.get("environments", 1),
+                "settings_path": c.get("settings_path", ""),
+            }
     return _config_cache[workspace]
 
 
@@ -127,32 +144,146 @@ def _run_ps(script: str, *args: str) -> dict:
 
 
 def _proyecto(workspace: str) -> str:
-    """Infiere nombre de proyecto desde ruta workspace (carpeta anterior a trunk/)."""
-    return Path(workspace).parent.name
+    """Nombre de proyecto AIS = nombre del .sln (carpeta C:\\AIS\\<Sln>\\). Fallback:
+    carpeta anterior a trunk/ para layouts sin .sln resoluble."""
+    return _resolve_sln_name(workspace) or Path(workspace).parent.name
+
+
+# ---------------------------------------------------------------------------
+# Conexión BD — fuente canónica: C:\AIS\<Sln>\bin\Settings\Settings.xml
+#   <SETTINGS><BBDD><oledbconnectionstring value="User Id=..;Password=..;Data Source=.."/>
+#   index 0 = entorno por defecto (DEV/TEST); 1+ = PRE/PROD si están definidos.
+# ---------------------------------------------------------------------------
+
+_conn_cache: dict[tuple, dict] = {}  # (workspace, index) → conexión parseada
+
+
+def _clean_env() -> dict:
+    """Env sin variables de proxy — el Instant Client de Oracle aborta con SP2-1502 /
+    'HTTP proxy Error 46' si http_proxy apunta a un proxy inaccesible (obs. máquina dev)."""
+    e = dict(os.environ)
+    for k in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"):
+        e.pop(k, None)
+    return e
+
+
+def _resolve_sln_name(workspace: str) -> str | None:
+    """Nombre del .sln (sin extensión) del workspace ScacsWeb — es también el nombre de la
+    carpeta de publicación en C:\\AIS\\<Sln>\\. Busca en: raíz de trunk, dotNet/Web,
+    dotNet/Batch/<Nombre>/."""
+    ws = Path(workspace)
+    for base in (ws, ws / "dotNet" / "Web"):
+        if not base.is_dir():
+            continue
+        slns = sorted(base.glob("*.sln"))
+        if len(slns) == 1:
+            return slns[0].stem
+        if len(slns) > 1:
+            for s in slns:
+                if (Path("C:/AIS") / s.stem).is_dir():
+                    return s.stem
+            return slns[0].stem
+    batch = ws / "dotNet" / "Batch"
+    if batch.is_dir():
+        cand = [d.name for d in batch.iterdir() if d.is_dir() and (d / f"{d.name}.sln").is_file()]
+        if len(cand) == 1:
+            return cand[0]
+    return None
+
+
+def _split_conn(cs: str) -> list[str]:
+    """Parte una connection string por ';'. Los descriptores Oracle (DESCRIPTION=...) no
+    contienen ';', así que el split simple es seguro para los formatos ScacsWeb."""
+    return [p.strip() for p in cs.split(";") if p.strip()]
+
+
+def _parse_conn_string(cs: str) -> dict:
+    """oledbconnectionstring .NET → {motor, datasource, user, password, catalog, schema}."""
+    kv: dict[str, str] = {}
+    for part in _split_conn(cs):
+        k, _, v = part.partition("=")
+        kv[k.strip().lower()] = v.strip()
+    datasource = kv.get("data source") or kv.get("server") or ""
+    user       = kv.get("user id") or kv.get("user") or kv.get("uid") or ""
+    password   = kv.get("password") or kv.get("pwd") or ""
+    catalog    = kv.get("initial catalog") or kv.get("database") or ""
+    ds_up = datasource.upper()
+    is_oracle = ("(DESCRIPTION=" in ds_up) or ("(PROTOCOL=" in ds_up) \
+                or ("SERVICE_NAME" in ds_up) or ("(SID=" in ds_up)
+    motor  = "ORACLE" if is_oracle else "SQLSERVER"
+    schema = (user if motor == "ORACLE" else (catalog or "dbo")).upper()
+    return {"motor": motor, "datasource": datasource, "user": user,
+            "password": password, "catalog": catalog, "schema": schema}
+
+
+def _legacy_xmlconfig(workspace: str) -> dict:
+    """Compat: workspaces antiguos con docs/XMLConfig.xml en vez de Settings.xml publicado."""
+    xml_path = Path(workspace) / "docs" / "XMLConfig.xml"
+    try:
+        root = ET.parse(xml_path).getroot()
+    except Exception as e:
+        return {"error": f"XMLConfig.xml ilegible: {e}"}
+    db = root.find(".//DataBase")
+    if db is not None and db.get("connectionString"):
+        c = _parse_conn_string(db.get("connectionString"))
+    else:
+        con = root.find(".//Conexion")
+        ds = (con.findtext("DataSource") if con is not None else "") or ""
+        c = _parse_conn_string(ds)
+    if db is not None and not c["password"]:
+        c["password"] = db.get("password", "") or ""
+    return c
+
+
+def _settings_conn(workspace: str, index: int = 0) -> dict:
+    """Fuente canónica de conexión BD del workspace. Devuelve
+    {motor, datasource, user, password, catalog, schema, sln, model_path, environments}
+    o {'error': ...}. Incluye 'password' — NO exponer el dict entero al agente
+    (usar _get_config, que lo omite). Cache por (workspace, index)."""
+    key = (workspace, index)
+    if key in _conn_cache:
+        return _conn_cache[key]
+
+    sln = _resolve_sln_name(workspace)
+    if not sln:
+        result: dict = {"error": "No se pudo resolver el .sln del workspace "
+                                 "(esperado 1 .sln en la raíz de trunk, dotNet/Web o dotNet/Batch/<Nombre>)."}
+    else:
+        settings = Path("C:/AIS") / sln / "bin" / "Settings" / "Settings.xml"
+        if settings.is_file():
+            try:
+                root = ET.parse(settings).getroot()
+                nodes = root.findall(".//BBDD/oledbconnectionstring") or \
+                        root.findall(".//oledbconnectionstring")
+                conns = [n.get("value", "") for n in nodes
+                         if n.get("value") and "=" in n.get("value", "")]
+                if not conns:
+                    result = {"error": f"Settings.xml sin oledbconnectionstring utilizable "
+                                       f"(¿cifrada?): {settings}"}
+                else:
+                    idx = index if 0 <= index < len(conns) else 0
+                    result = _parse_conn_string(conns[idx])
+                    result["environments"]  = len(conns)
+                    result["settings_path"] = str(settings)
+            except Exception as e:
+                result = {"error": f"Settings.xml ilegible ({settings}): {e}"}
+        elif (Path(workspace) / "docs" / "XMLConfig.xml").is_file():
+            result = _legacy_xmlconfig(workspace)
+        else:
+            result = {"error": f"Conexión BD no resuelta: falta {settings} "
+                               "(¿solución sin publicar?) y no hay docs/XMLConfig.xml legacy."}
+
+    if "error" in result:
+        return result  # no cachear errores — la solución puede publicarse después
+    result["sln"]        = sln
+    result["model_path"] = str(Path(workspace) / "BD" / f"{sln}-model.json")
+    _conn_cache[key] = result
+    return result
 
 
 def _get_db_password(workspace: str) -> str:
-    """Lee password directo de docs/XMLConfig.xml — NUNCA pasar por _get_config()/get-config.ps1,
-    cuyo dict se devuelve tal cual por la tool get_db_config (no debe filtrar el password al agente)."""
-    import xml.etree.ElementTree as ET
-    xml_path = Path(workspace) / "docs" / "XMLConfig.xml"
-    if not xml_path.exists():
-        return ""
-    try:
-        root = ET.parse(xml_path).getroot()
-        db_node = root.find(".//DataBase")
-        if db_node is not None:
-            return db_node.get("password", "") or ""
-        con_node = root.find(".//Conexion")
-        if con_node is not None:
-            ds = (con_node.findtext("DataSource") or "")
-            for part in ds.split(";"):
-                part = part.strip()
-                if part.lower().startswith("password="):
-                    return part.split("=", 1)[1].strip()
-        return ""
-    except Exception:
-        return ""
+    """Password de la conexión por defecto (Settings.xml). '' si no se resuelve."""
+    return _settings_conn(workspace).get("password", "") or ""
 
 
 def _check_workspace(workspace: str) -> dict | None:
@@ -218,7 +349,8 @@ def _run_oracle_sql(datasource: str, user: str, password: str, schema: str, sql:
     tmp.write(script); tmp.close()
     try:
         r = subprocess.run(["sqlplus", "-S", sqlplus_conn, f"@{tmp.name}"],
-                           capture_output=True, text=True, encoding="utf-8", timeout=120)
+                           capture_output=True, text=True, encoding="utf-8", timeout=120,
+                           env=_clean_env())
     finally:
         os.unlink(tmp.name)
     if r.returncode != 0 and not r.stdout.strip():
@@ -275,11 +407,14 @@ def _query_oracle_schema(
 
 
 def _query_sqlserver_schema(
-    datasource: str, schema: str,
+    server: str, database: str,
     table_filter: list[str] | None = None,
+    user: str = "", password: str = "", table_schema: str = "dbo",
 ) -> tuple:
-    """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error."""
-    db_schema = schema or "dbo"
+    """Retorna (col_rows_parsed, pk_rows_parsed). col_rows puede ser str de error.
+    server = host[\\instancia] (campo 'Data Source' del connstring), database = 'Initial Catalog'.
+    user/password → auth SQL (-U/-P); vacío → auth Windows integrada."""
+    db_schema = table_schema or "dbo"
     tbl_where = f" AND TABLE_NAME {_in_clause_sqlserver(table_filter)}" if table_filter else ""
     col_sql = (
         f"SELECT TABLE_NAME+'|'+COLUMN_NAME+'|'+DATA_TYPE+'|'"
@@ -297,17 +432,21 @@ def _query_sqlserver_schema(
     )
 
     def _sqlcmd(sql: str):
-        server, database = datasource, db_schema
-        for part in datasource.split(";"):
-            k, _, v = part.partition("=")
-            k = k.strip().lower()
-            if k in ("server", "data source"):
-                server = v.strip()
-            elif k in ("database", "initial catalog"):
-                database = v.strip()
+        # Compat: si 'server' viniera como connstring completa (workspaces legacy), extraer campos.
+        srv, db = server, (database or db_schema)
+        if ";" in server or "=" in server:
+            for part in server.split(";"):
+                k, _, v = part.partition("=")
+                k = k.strip().lower()
+                if k in ("server", "data source"):
+                    srv = v.strip()
+                elif k in ("database", "initial catalog"):
+                    db = v.strip()
+        cmd = ["sqlcmd", "-S", srv, "-d", db, "-Q", sql, "-h", "-1", "-W", "-s", "|"]
+        if user:
+            cmd += ["-U", user, "-P", password]
         r = subprocess.run(
-            ["sqlcmd", "-S", server, "-d", database, "-Q", sql, "-h", "-1", "-W", "-s", "|"],
-            capture_output=True, text=True, encoding="utf-8", timeout=120
+            cmd, capture_output=True, text=True, encoding="utf-8", timeout=120, env=_clean_env()
         )
         if r.returncode != 0 and not r.stdout.strip():
             return f"sqlcmd error: {r.stderr.strip() or 'sin salida'}"
@@ -367,16 +506,18 @@ def _sync_from_db_impl(workspace: str) -> dict:
     datasource = config.get("datasource", "")
     schema     = config.get("schema", "")
     user       = config.get("user", "")
+    catalog    = config.get("catalog", "")
     model_path = Path(config.get("model_path", ""))
     password   = _get_db_password(workspace)
 
     if not model_path.name:
-        return {"error": "model_path no resuelto desde XMLConfig.xml"}
+        return {"error": "model_path no resuelto (Settings.xml)"}
 
     if motor == "ORACLE":
         col_rows, pk_rows = _query_oracle_schema(datasource, user, password, schema)
     elif motor == "SQLSERVER":
-        col_rows, pk_rows = _query_sqlserver_schema(datasource, schema)
+        col_rows, pk_rows = _query_sqlserver_schema(datasource, catalog or schema,
+                                                    user=user, password=password)
     else:
         return {"error": f"Motor no soportado: {motor}"}
 
@@ -518,27 +659,28 @@ def _sync_indexes_impl(workspace: str) -> dict:
 #   XMLConfig.xml (get_db_config). Un proyecto = una BD.
 # ---------------------------------------------------------------------------
 
-def _bd_ctx(workspace: str) -> dict:
-    """Contexto BD del workspace: motor, datasource, schema, user, model_path, password.
-    Devuelve {'error': ...} si falta configuración."""
-    config = _get_config(workspace)
-    if not isinstance(config, dict) or "error" in config:
-        msg = config.get("error") if isinstance(config, dict) else "get-config.ps1 no devolvió configuración"
-        return {"error": msg}
-    mp = config.get("model_path", "")
+def _bd_ctx(workspace: str, index: int = 0) -> dict:
+    """Contexto BD del workspace: motor, datasource, schema, user, catalog, model_path, password.
+    index 0 = entorno por defecto (DEV/TEST); 1+ = PRE/PROD de Settings.xml.
+    Fuente: Settings.xml publicado (_settings_conn). Devuelve {'error': ...} si falta configuración."""
+    c = _settings_conn(workspace, index)
+    if "error" in c:
+        return {"error": c["error"]}
+    mp = c.get("model_path", "")
     return {
-        "motor":      (config.get("motor") or "").upper(),
-        "datasource": config.get("datasource", ""),
-        "schema":     config.get("schema", ""),
-        "user":       config.get("user", ""),
+        "motor":      (c.get("motor") or "").upper(),
+        "datasource": c.get("datasource", ""),
+        "schema":     c.get("schema", ""),
+        "user":       c.get("user", ""),
+        "catalog":    c.get("catalog", ""),
         "model_path": Path(mp) if mp else None,
-        "password":   _get_db_password(workspace),
+        "password":   c.get("password", ""),
     }
 
 
 def _scripts_dir(workspace: str) -> Path:
-    """C:\\AIS\\<proyecto>\\scripts — destino canónico SCACS de todo .sql generado."""
-    return Path("C:/AIS") / _proyecto(workspace) / "scripts"
+    """C:\\AIS\\<Sln>\\scripts — destino canónico SCACS de todo .sql generado."""
+    return Path("C:/AIS") / (_resolve_sln_name(workspace) or _proyecto(workspace)) / "scripts"
 
 
 _TYPE_RE = re.compile(
@@ -653,7 +795,8 @@ def _compare_model_impl(workspace: str, tables: str = "") -> dict:
     if engine == "ORACLE":
         col_rows, pk_rows = _query_oracle_schema(ctx["datasource"], ctx["user"], ctx["password"], ctx["schema"], table_filter)
     elif engine == "SQLSERVER":
-        col_rows, pk_rows = _query_sqlserver_schema(ctx["datasource"], ctx["schema"], table_filter)
+        col_rows, pk_rows = _query_sqlserver_schema(ctx["datasource"], ctx.get("catalog") or ctx["schema"],
+                                                    table_filter, user=ctx["user"], password=ctx["password"])
     else:
         return {"success": False, "error": f"Motor no soportado: {engine!r}"}
     if isinstance(col_rows, str):
@@ -1121,7 +1264,7 @@ def detect_vcs(workspace: str) -> str:
     return json.dumps(_run_ps("detect-vcs.ps1", workspace), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Lee XMLConfig.xml → motor, datasource, schema, model_path. Usar antes de operaciones BD.")
+@mcp.tool(description="Resuelve la conexión BD de la solución desde C:\\AIS\\<Sln>\\bin\\Settings\\Settings.xml (tag oledbconnectionstring) → motor, datasource, schema, catalog, user, sln, environments, model_path. NO devuelve password. Usar antes de operaciones BD. Fallback legacy: docs/XMLConfig.xml.")
 def get_db_config(workspace: str) -> str:
     return json.dumps(_get_config(workspace), ensure_ascii=False, separators=(",",":"))
 
@@ -1190,8 +1333,8 @@ def create_test_project(sln_path: str, framework: str = "xunit", project_name: s
     return json.dumps(_run_ps("create-test-project.ps1", *args), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="SELECT directo a BD configurada en XMLConfig (SQL Server o Oracle). SOLO SELECT. max_rows limita filas devueltas en contexto (default 200).")
-def db_query(workspace: str, sql: str, max_rows: int = 200) -> str:
+@mcp.tool(description="SELECT en vivo contra la BD publicada de la solución (cadena de C:\\AIS\\<Sln>\\bin\\Settings\\Settings.xml → oledbconnectionstring). SQL Server u Oracle, autodetectado. SOLO SELECT, sin multi-statement. max_rows limita filas en contexto (default 200). env_index: 0=DEV/TEST (default), 1+=PRE/PROD. Usar SIEMPRE que se necesiten registros/valores reales de tablas.")
+def db_query(workspace: str, sql: str, max_rows: int = 200, env_index: int = 0) -> str:
     sql_clean = sql.strip().upper()
     if not sql_clean.startswith("SELECT"):
         return json.dumps({"error": "Solo se permiten consultas SELECT"}, ensure_ascii=False)
@@ -1207,19 +1350,22 @@ def db_query(workspace: str, sql: str, max_rows: int = 200) -> str:
     if semi_count > 0:
         return json.dumps({"error": "Multi-statement SQL no permitido"}, ensure_ascii=False)
 
-    config = _get_config(workspace)
+    config = _settings_conn(workspace, env_index)
     if "error" in config:
-        return json.dumps(config, ensure_ascii=False)
+        return json.dumps({"error": config["error"]}, ensure_ascii=False)
 
     motor      = config.get("motor", "")
     datasource = config.get("datasource", "")
     schema     = config.get("schema", "")
     user       = config.get("user", "")
-    password   = _get_db_password(workspace)
+    catalog    = config.get("catalog", "")
+    password   = config.get("password", "")
 
     if motor == "SQLSERVER":
-        cmd = ["sqlcmd", "-S", datasource, "-d", schema, "-Q", sql_norm, "-h", "-1", "-W"]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+        cmd = ["sqlcmd", "-S", datasource, "-d", catalog or schema, "-Q", sql_norm, "-h", "-1", "-W"]
+        if user:
+            cmd += ["-U", user, "-P", password]
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", env=_clean_env())
     elif motor == "ORACLE":
         # Credenciales en fichero SQL, no en línea de comando (no exponer en lista de procesos)
         if password:
@@ -1237,7 +1383,7 @@ def db_query(workspace: str, sql: str, max_rows: int = 200) -> str:
         tmp.write(script); tmp.close()
         cmd = ["sqlplus", "-S", sqlplus_conn, f"@{tmp.name}"]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", env=_clean_env())
         finally:
             os.unlink(tmp.name)
     else:
@@ -1433,6 +1579,7 @@ def sync_model_tables(workspace: str, tables: str) -> str:
     datasource = config.get("datasource", "")
     schema     = config.get("schema", "")
     user       = config.get("user", "")
+    catalog    = config.get("catalog", "")
     model_path = Path(config.get("model_path", ""))
     password   = _get_db_password(workspace)
     table_list = [t.strip().upper() for t in tables.split(",") if t.strip()]
@@ -1441,7 +1588,8 @@ def sync_model_tables(workspace: str, tables: str) -> str:
     if motor == "ORACLE":
         col_rows, pk_rows = _query_oracle_schema(datasource, user, password, schema, table_filter=table_list)
     elif motor == "SQLSERVER":
-        col_rows, pk_rows = _query_sqlserver_schema(datasource, schema, table_filter=table_list)
+        col_rows, pk_rows = _query_sqlserver_schema(datasource, catalog or schema, table_filter=table_list,
+                                                    user=user, password=password)
     else:
         return json.dumps({"error": f"Motor no soportado: {motor}"}, ensure_ascii=False)
     if isinstance(col_rows, str):
@@ -1524,25 +1672,16 @@ def render_erd(workspace: str) -> str:
     return json.dumps(_render_erd_impl(workspace), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Esquema completo (columnas con tipo/nullable/pk, relaciones, índices) de tablas específicas del modelo BD. Evita cargar model.json completo (~180K tokens). tables = coma-separadas.")
-def get_table_schema(workspace: str, tables: str) -> str:
-    if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
-    config = _get_config(workspace)
-    if "error" in config: return json.dumps(config, ensure_ascii=False)
-
-    model_path = Path(config.get("model_path", ""))
-    table_list = [t.strip().upper() for t in tables.split(",") if t.strip()]
-
+def _schema_from_model(model_path: Path | None, table_list: list[str]) -> tuple[dict, list] | None:
+    """Esquema de tablas desde el snapshot model.json. None si no hay modelo."""
+    if not model_path:
+        return None
     model = _load_model(model_path)
     if model is None:
-        return json.dumps({"error": f"Modelo BD no encontrado: {model_path}"}, ensure_ascii=False)
-
+        return None
     raw = model.get("tables", {})
-    if isinstance(raw, dict):
-        index = {k.upper(): v for k, v in raw.items()}
-    else:
-        index = {(t.get("name") or t.get("tableName", "?")).upper(): t for t in raw}
-
+    index = {k.upper(): v for k, v in raw.items()} if isinstance(raw, dict) else \
+            {(t.get("name") or t.get("tableName", "?")).upper(): t for t in raw}
     result: dict = {}
     not_found: list = []
     for tname in table_list:
@@ -1551,25 +1690,98 @@ def get_table_schema(workspace: str, tables: str) -> str:
             not_found.append(tname)
             continue
         cols = tdef.get("columns", {})
-        if isinstance(cols, dict):
-            col_list = [{"name": k, **v} for k, v in cols.items()]
-        else:
-            col_list = list(cols)
+        col_list = [{"name": k, **v} for k, v in cols.items()] if isinstance(cols, dict) else list(cols)
         result[tname] = {
+            "source": "model",
             "description": tdef.get("description", ""),
             "visible": tdef.get("visible", True),
             "columns": col_list,
             "relations": tdef.get("relations", []),
             "indexes": tdef.get("indexes", []),
         }
+    return result, not_found
 
-    return json.dumps({
+
+@mcp.tool(description="Esquema de tablas (columnas tipo/longitud/nullable/pk; relaciones e índices si vienen del snapshot). source='auto' (default): consulta la BD EN VIVO vía Settings.xml y solo si la conexión falla cae al snapshot BD/<Sln>-model.json con warning. source='db': solo vivo (error si no conecta). source='model': solo snapshot. env_index: 0=DEV/TEST (default), 1+=PRE/PROD de Settings.xml. tables = coma-separadas.")
+def get_table_schema(workspace: str, tables: str, source: str = "auto", env_index: int = 0) -> str:
+    if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
+    table_list = [t.strip().upper() for t in tables.split(",") if t.strip()]
+    if not table_list:
+        return json.dumps({"error": "Sin tablas indicadas"}, ensure_ascii=False)
+
+    ctx = _bd_ctx(workspace, env_index)
+    ctx_err = ctx.get("error") if isinstance(ctx, dict) else None
+    model_path = ctx.get("model_path") if isinstance(ctx, dict) and not ctx_err else None
+    warning: str | None = None
+
+    # --- vía viva (auto | db) ---
+    if source in ("auto", "db"):
+        if ctx_err:
+            warning = f"sin conexión ({ctx_err})"
+        else:
+            motor = ctx["motor"]
+            if motor == "ORACLE":
+                col_rows, pk_rows = _query_oracle_schema(
+                    ctx["datasource"], ctx["user"], ctx["password"], ctx["schema"], table_list)
+            elif motor == "SQLSERVER":
+                col_rows, pk_rows = _query_sqlserver_schema(
+                    ctx["datasource"], ctx.get("catalog") or ctx["schema"], table_list,
+                    user=ctx["user"], password=ctx["password"])
+            else:
+                col_rows, pk_rows = f"motor no soportado: {motor!r}", []
+            if isinstance(col_rows, str):
+                warning = f"consulta viva falló ({col_rows})"
+            else:
+                built = _build_table_dict(col_rows, pk_rows)
+                # Enriquecer con indexes/relations/description del snapshot (si existe) — las
+                # columnas son de la BD viva; indexes/relations pueden estar algo desfasados.
+                snap = _load_model(model_path) if model_path else None
+                snap_idx = {}
+                if snap:
+                    raw = snap.get("tables", {})
+                    snap_idx = {k.upper(): v for k, v in raw.items()} if isinstance(raw, dict) else \
+                               {(x.get("name") or "?").upper(): x for x in raw}
+                live: dict = {}
+                for t in table_list:
+                    if t in built:
+                        entry = {"source": "db",
+                                 "columns": [{"name": c, **v} for c, v in built[t].items()]}
+                        sd = snap_idx.get(t)
+                        if sd:
+                            entry["description"]     = sd.get("description", "")
+                            entry["relations"]       = sd.get("relations", [])
+                            entry["indexes"]         = sd.get("indexes", [])
+                            entry["meta_from_snapshot"] = True
+                        live[t] = entry
+                return json.dumps({
+                    "workspace": workspace, "motor": motor, "schema": ctx["schema"],
+                    "source": "db", "tables": live,
+                    "not_found": [t for t in table_list if t not in live],
+                }, ensure_ascii=False, separators=(",",":"))
+        if source == "db":
+            return json.dumps({"error": warning or "consulta viva falló", "workspace": workspace},
+                              ensure_ascii=False)
+
+    # --- snapshot model.json (source='model', o fallback de 'auto') ---
+    from_model = _schema_from_model(model_path, table_list)
+    if from_model is None:
+        return json.dumps({
+            "error": (f"{warning}; " if warning else "") +
+                     "sin snapshot model.json — ejecuta 'sincroniza el modelo BD' o revisa la publicación de la solución",
+            "workspace": workspace,
+        }, ensure_ascii=False)
+    result, not_found = from_model
+    out = {
         "workspace": workspace,
-        "motor": config.get("motor"),
-        "schema": config.get("schema"),
+        "motor": (ctx.get("motor") if isinstance(ctx, dict) else None),
+        "schema": (ctx.get("schema") if isinstance(ctx, dict) else None),
+        "source": "model",
         "tables": result,
         "not_found": not_found,
-    }, ensure_ascii=False, separators=(",",":"))
+    }
+    if warning:
+        out["warning"] = f"{warning} — esquema del snapshot, posiblemente desactualizado"
+    return json.dumps(out, ensure_ascii=False, separators=(",",":"))
 
 
 @mcp.tool(description="Localiza N símbolos en una sola llamada (equivale a N×find_symbol). symbols = coma-separados. Usar en impact analysis y refactor para evitar N round-trips.")
@@ -1605,7 +1817,7 @@ def compare_model_tables(workspace: str, tables: str) -> str:
     return json.dumps(_compare_model_impl(workspace, tables), ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Índice ligero del modelo BD: {TABLA: [COL1, COL2, ...]}. ~15K tokens vs 180K del modelo completo. Usar para impact analysis, búsqueda de columnas, verificar qué tablas existen.")
+@mcp.tool(description="Índice ligero del SNAPSHOT model.json: {TABLA: [COL1, COL2, ...]}. Para impact analysis y ojear qué tablas hay. Para datos frescos de tablas/columnas/registros → get_table_schema (vivo) o db_query. Requiere BD/<Sln>-model.json (ejecutar 'sincroniza el modelo BD').")
 def get_model_index(workspace: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
     config = _get_config(workspace)
@@ -1613,7 +1825,7 @@ def get_model_index(workspace: str) -> str:
 
     model = _load_model(Path(config.get("model_path", "")))
     if model is None:
-        return json.dumps({"error": "Modelo BD no encontrado"}, ensure_ascii=False)
+        return json.dumps({"error": "Snapshot model.json no encontrado. Para esquema en vivo usar get_table_schema o db_query; para generar el snapshot, 'sincroniza el modelo BD' (sync_from_db)."}, ensure_ascii=False)
 
     raw = model.get("tables", {})
     items = raw.items() if isinstance(raw, dict) else \
@@ -1633,7 +1845,7 @@ def get_model_index(workspace: str) -> str:
     }, ensure_ascii=False, separators=(",",":"))
 
 
-@mcp.tool(description="Busca keyword en nombres de tablas, columnas y descripciones del modelo BD. Alternativa a cargar model.json completo cuando se busca dónde vive un concepto. Devuelve tablas/columnas que hacen match.")
+@mcp.tool(description="Busca keyword en nombres de tabla/columna/descripción del SNAPSHOT model.json — para localizar dónde vive un concepto. Confirma siempre contra la BD viva (get_table_schema / db_query). Requiere BD/<Sln>-model.json.")
 def search_model(workspace: str, keyword: str) -> str:
     if err := _check_workspace(workspace): return json.dumps(err, ensure_ascii=False)
     config = _get_config(workspace)
@@ -1641,7 +1853,7 @@ def search_model(workspace: str, keyword: str) -> str:
 
     model = _load_model(Path(config.get("model_path", "")))
     if model is None:
-        return json.dumps({"error": "Modelo BD no encontrado"}, ensure_ascii=False)
+        return json.dumps({"error": "Snapshot model.json no encontrado. Para buscar en vivo usar db_query contra ALL_TAB_COLUMNS/INFORMATION_SCHEMA.COLUMNS."}, ensure_ascii=False)
 
     kw = keyword.upper()
     raw = model.get("tables", {})

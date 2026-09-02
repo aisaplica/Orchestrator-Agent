@@ -30,8 +30,8 @@ Invocación directa via `/orchestrator-seed`. No forma parte del pipeline.
 # Proceso
 
 1. Resolver workspace (per SKILL.md "Workspace y Rutas")
-2. Obtener esquema: `mcp__orchestrator-workspace__get_table_schema(workspace, [tabla])`
-3. Si la tabla no está en el modelo: informar y terminar
+2. Obtener esquema VIVO: `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")`
+3. Si la tabla no existe en la BD (ni en snapshot): informar y terminar
 4. Para cada columna analizar:
    - Tipo → función de generación apropiada (ver tabla de generadores)
    - Longitud → respetar el máximo

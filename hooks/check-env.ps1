@@ -58,23 +58,27 @@ if (Test-Path $envJson) {
     Add-Check "env.json" "FAIL" "No existe env.json ni env.template.json en $pluginRoot"
 }
 
-# Check 1: XMLConfig.xml
-$xmlPath = Join-Path $workspace "docs\XMLConfig.xml"
-if (Test-Path $xmlPath) {
+# Check 1: Conexion BD — Settings.xml publicado (fuente canonica), XMLConfig.xml legacy como fallback
+$settingsPath = "C:\AIS\$proyecto\bin\Settings\Settings.xml"
+$legacyXml    = Join-Path $workspace "docs\XMLConfig.xml"
+if (Test-Path $settingsPath) {
     try {
-        [xml]$xml = Get-Content $xmlPath -Raw -Encoding UTF8
-        $motorNode = $xml.SelectSingleNode("//*[local-name()='Motor' or local-name()='motor']")
-        $motor = if ($motorNode) { $motorNode.InnerText } else { $null }
-        $dsNode = $xml.SelectSingleNode("//*[local-name()='DataSource' or local-name()='datasource' or local-name()='ConnectionString']")
-        $ds    = if ($dsNode) { $dsNode.InnerText } else { $null }
-        $detail = if ($motor) { "Motor: $motor" } else { "Existe (motor no detectado)" }
-        if ($ds) { $detail += ", DS: $($ds.Substring(0, [Math]::Min(30,$ds.Length)))" }
-        Add-Check "XMLConfig.xml" "OK" $detail
+        [xml]$xml = Get-Content $settingsPath -Raw -Encoding UTF8
+        $conns = @($xml.SelectNodes("//*[local-name()='oledbconnectionstring']") | ForEach-Object { $_.value } | Where-Object { $_ -and $_.Contains('=') })
+        if ($conns.Count -gt 0) {
+            $isOracle = $conns[0].ToUpper().Contains('(DESCRIPTION=') -or $conns[0].ToUpper().Contains('SERVICE_NAME') -or $conns[0].ToUpper().Contains('(SID=')
+            $motor = if ($isOracle) { "ORACLE" } else { "SQLSERVER" }
+            Add-Check "Conexion BD" "OK" "Settings.xml — Motor: $motor, entornos: $($conns.Count)"
+        } else {
+            Add-Check "Conexion BD" "WARN" "Settings.xml sin oledbconnectionstring utilizable (cifrada?)"
+        }
     } catch {
-        Add-Check "XMLConfig.xml" "WARN" "Existe pero error al parsear: $($_.Exception.Message)"
+        Add-Check "Conexion BD" "WARN" "Settings.xml existe pero error al parsear: $($_.Exception.Message)"
     }
+} elseif (Test-Path $legacyXml) {
+    Add-Check "Conexion BD" "WARN" "Solo docs\XMLConfig.xml legacy — publica la solucion para generar $settingsPath"
 } else {
-    Add-Check "XMLConfig.xml" "FAIL" "No encontrado: $xmlPath"
+    Add-Check "Conexion BD" "FAIL" "No encontrado $settingsPath (solucion sin publicar) ni docs\XMLConfig.xml"
 }
 
 # Check 2: Ruta AIS base

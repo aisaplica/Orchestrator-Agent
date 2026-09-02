@@ -22,27 +22,27 @@ Invocación directa via `/orchestrator-comparar-entornos`. No forma parte del pi
 
 # Input esperado
 
-Formato: `/orchestrator-comparar-entornos [workspace1] [workspace2] [tablas]`
-- `workspace1`, `workspace2` — rutas de workspace de cada entorno (cada uno con su XMLConfig)
-  Si solo se especifica uno → comparar workspace actual vs modelo BD local
-- `tablas` — lista de tablas separadas por coma. Si no se especifica → usar el modelo completo
+Formato: `/orchestrator-comparar-entornos [tablas] [entorno1] [entorno2]`
+- `entorno1`, `entorno2` — índices de `oledbconnectionstring` en `Settings.xml` (0 = DEV/TEST, 1 = PRE, 2 = PROD).
+  Sin indicar → 0 vs 1 si `environments > 1` (ver `get_db_config`).
+  Alternativa: dos rutas de workspace distintas (dos checkouts) → cada una resuelve su propio `Settings.xml`.
+- `tablas` — lista separada por coma. Sin indicar → comparar el snapshot `model.json` vs BD viva (modo un entorno).
 
-Modo simplificado (un workspace): compara el modelo BD JSON con el esquema real de BD.
-Equivale a `/orchestrator-comparar-modelo` pero orientado a diferencias de entorno.
+Modo simplificado (un entorno): `compare_model(workspace)` — snapshot vs BD real.
 
 # Proceso
 
-## Modo dos workspaces (comparación real entre entornos)
+## Modo dos entornos (comparación real entre conexiones)
 
-1. Validar que existen los dos workspaces especificados
+1. `get_db_config(workspace)` → confirmar `environments` disponibles en `Settings.xml`
 2. Para cada tabla de la lista:
-   a. Entorno 1: `mcp__orchestrator-workspace__get_table_schema(workspace1, [tabla])`
-   b. Entorno 2: `mcp__orchestrator-workspace__get_table_schema(workspace2, [tabla])`
-   O si no está en el modelo: `db_query(workspaceN, "SELECT column_name, data_type, data_length, nullable FROM all_tab_columns WHERE table_name = 'TABLA' ORDER BY column_id")`
+   a. Entorno 1: `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db", env_index=<n1>)`
+   b. Entorno 2: `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db", env_index=<n2>)`
+   (o `db_query(workspace, "...", env_index=<n>)` para catálogo/índices)
 3. Comparar esquemas: columnas, tipos, longitudes, nullabilidad, índices
 4. Reportar diferencias
 
-## Modo un workspace (modelo vs BD real)
+## Modo un entorno (snapshot vs BD real)
 
 1. `mcp__orchestrator-workspace__compare_model(workspace)` → diff completo modelo vs BD
 2. Filtrar por tablas especificadas si el usuario las indicó

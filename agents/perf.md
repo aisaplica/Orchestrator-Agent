@@ -24,15 +24,15 @@ El usuario puede filtrar por DALC específico o tabla.
 # Proceso
 
 1. Resolver solución → `mcp__orchestrator-workspace__get_scope(sln_path)` → scope_dirs, tipo
-2. Obtener índice del modelo BD: `mcp__orchestrator-workspace__get_model_index()` → lista de tablas
+2. Ojear tablas del proyecto: `mcp__orchestrator-workspace__get_model_index()` (snapshot, orientativo)
 3. Localizar todos los DALCs del scope:
    `mcp__orchestrator-workspace__search_code(query="DALC", scope_dirs)` → ficheros *DALC.cs
    O filtrar por `sln_path` si el usuario especificó un DALC/tabla concreto
 4. Para cada DALC:
    a. Leer el fichero → extraer queries SQL (strings con SELECT/INSERT/UPDATE/DELETE)
-   b. Identificar tablas referenciadas → `mcp__orchestrator-workspace__get_table_schema(tabla)` para cada una
+   b. Identificar tablas referenciadas → `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")` para cada una (índices reales de la BD)
    c. Extraer columnas usadas en WHERE, ORDER BY, JOIN
-   d. Cruzar contra índices del modelo → detectar columnas sin índice
+   d. Cruzar contra los `indexes` devueltos → detectar columnas sin índice
    e. Detectar patrones no-sargables con Grep: `UPPER(`, `LIKE '%`, `TO_CHAR(`, `TO_DATE(`
    f. Detectar SELECT * con Grep: `"SELECT \*"` o `"SELECT \*"` en el string de query
 5. Analizar `mcp__orchestrator-workspace__analyze_dalc(workspace, sln_path)` si disponible → usar resultado como base

@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.15.0] — 2026-09-02
+
+### Conexión BD en vivo desde `Settings.xml` (reemplaza la lectura de ficheros SQL/model.json como fuente de esquema)
+
+**Motivo:** al consultar tablas, campos o registros el plugin usaba el snapshot `model.json`
+o los `projects/*/schema.md` a mano; los workspaces reales ScacsWeb ni siquiera tienen
+`docs/XMLConfig.xml`, así que `get-config.ps1` y todas las tools BD fallaban de entrada.
+Ahora la conexión se resuelve **en vivo** desde la carpeta de publicación de la solución.
+
+- `mcp/orchestrator-workspace-server.py`:
+  - Nuevos helpers `_resolve_sln_name`, `_parse_conn_string`, `_settings_conn`, `_clean_env`,
+    `_legacy_xmlconfig`. Fuente canónica: `C:\AIS\<Sln>\bin\Settings\Settings.xml` →
+    `<BBDD>/<oledbconnectionstring value="..."/>` (índice 0 = DEV/TEST, 1+ = PRE/PROD).
+    Fallback legacy: `<workspace>\docs\XMLConfig.xml`.
+  - `_get_config` / `_bd_ctx` / `_get_db_password` / `db_query` / `sync_from_db` /
+    `sync_model_tables` / `compare_model` reorientados a esta fuente. `_get_config` ya NO
+    devuelve `password`.
+  - `get_table_schema(workspace, tables, source="auto", env_index=0)` — consulta el catálogo
+    **en vivo** (`source="auto"`/`"db"`); si la conexión falla cae al snapshot `BD/<Sln>-model.json`
+    con `warning`. `source="model"` fuerza snapshot. Enriquece con `indexes`/`relations` del
+    snapshot (`meta_from_snapshot`).
+  - `db_query` / `get_table_schema` aceptan `env_index` (PRE/PROD).
+  - `_query_sqlserver_schema` ahora recibe `server`, `database`, `user`, `password` (`-U/-P`) y
+    `table_schema` — antes asumía auth Windows y confundía catálogo con esquema.
+  - `sqlplus`/`sqlcmd` se lanzan con `env` sin variables de proxy (evita `SP2-1502 / Error 46`
+    del Instant Client de Oracle).
+  - `_proyecto` / `_scripts_dir` usan el nombre del `.sln` → `C:\AIS\<Sln>\scripts\`.
+  - `get_model_index` / `search_model` marcados como snapshot orientativo.
+- `hooks/get-config.ps1` — reescrito: resuelve `Settings.xml` (params `-SlnName`, `-Index`),
+  parsea la connstring, devuelve `motor/datasource/schema/catalog/user/sln/environments` sin password.
+- `hooks/check-env.ps1` — Check 1 valida `C:\AIS\<Sln>\bin\Settings\Settings.xml` (XMLConfig legacy → WARN).
+- Agentes recableados a "consulta viva primero": `core`, `bd`, `schema`, `db-env`,
+  `comparar-modelo`, `comparar-entornos`, `generar-dalc`, `seed`, `perf`, `incidencia`, `explicar`.
+  `projects/<proy>/schema.md` queda como contexto de negocio, no fuente de esquema.
+- `references/bd.md`, `references/mcp.md`, `references/hooks.md`, `docs/plugin-architecture.md` (§6)
+  sincronizados.
+
+**Cambio de comportamiento:** el snapshot del modelo pasa a llamarse `BD/<Sln>-model.json`
+(antes derivaba de la carpeta del workspace).
+
 ## [1.14.0] — 2026-09-01
 
 ### Nueva doc funcional — Workflow (`docs/scacs/04-workflow/`)

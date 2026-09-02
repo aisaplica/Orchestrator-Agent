@@ -12,20 +12,21 @@ ScacsWeb: Ingenieros, BM/bancamarch, BAPRO, CRA, Macro, PAEAR, Patagonia, etc.
 
 # Fuente de datos
 
-Todos los datos viven en `$SKILL_DIR` (raíz del plugin):
+**Conexión y esquema BD (SIEMPRE en vivo):**
+- Cadena de conexión: `C:\AIS\<Sln>\bin\Settings\Settings.xml` → tag `oledbconnectionstring`
+  (index 0 = DEV/TEST; 1+ = PRE/PROD). Resolver con `mcp__orchestrator-workspace__get_db_config(workspace)`.
+- Esquema de tablas/columnas: `mcp__orchestrator-workspace__get_table_schema(workspace, "T1,T2", source="db")`.
+- Registros/valores reales: `mcp__orchestrator-workspace__db_query(workspace, "SELECT ...")` (SOLO SELECT).
+- ⛔ NUNCA responder sobre tablas/campos/registros desde `projects/<proy>/schema.md` ni desde `model.json` — son caché; consulta la BD.
+
+**Contexto NO-BD** (Mantis, SVN, SMTP, perfil) — `$SKILL_DIR`:
 
 ```
 $SKILL_DIR\
-├── env.json                          ← ⚡ LEER SIEMPRE PRIMERO
+├── env.json                          ← Mantis / SVN / correo / contexto_personal
 ├── references\oracle-tips.md
 ├── references\sqlserver-tips.md
-└── projects\
-    ├── Ingenieros\
-    │   ├── config.json
-    │   └── schema.md
-    └── bancamarch\
-        ├── config.json
-        └── schema.md
+└── projects\<nombre>\schema.md       ← SOLO contexto de negocio (qué representan las tablas), no esquema técnico
 ```
 
 ⛔ No copiar `env.json` ni credenciales fuera de `$SKILL_DIR`.
@@ -45,28 +46,21 @@ $SKILL_DIR\
      
      **Detener aquí** — no continuar hasta que el usuario confirme que ha rellenado el archivo.
 
-1. **Cargar `env.json`** — contiene:
-   - `herramientas`: URLs y credenciales de Mantis, SVN, correo SMTP
-   - `credenciales_bbdd`: usuarios/passwords por proyecto y entorno
-   - `entornos`: connection strings completas por proyecto (DEV/PRE/PRO)
-   - `contexto`: perfil del usuario (senior analyst, ScacsWeb)
+1. **Conexión BD** → `get_db_config(workspace)` resuelve motor/datasource/schema/user desde
+   `Settings.xml`. Para PRE/PROD, el `oledbconnectionstring` de índice > 0 (si `environments > 1`).
 
-2. **Si el usuario menciona un proyecto** → cargar `projects/<nombre>/config.json`.
-   Cruzar passwords desde `env.json > credenciales_bbdd`.
+2. **Esquema / tablas / columnas / registros** → SIEMPRE `get_table_schema(source="db")` y/o `db_query`.
+   Si la petición es "genera C# ADO.NET / stored procedure para la tabla X" → primero `get_table_schema` vivo, luego generar.
 
-3. **Cargar `projects/<nombre>/schema.md`** para conocer tablas, columnas y tipos.
+3. **Contexto de negocio** (qué es la tabla, reglas funcionales) → `projects/<nombre>/schema.md` si existe. NO usarlo para tipos/longitudes.
 
-4. **Seleccionar tips de motor**:
-   - Oracle → `references/oracle-tips.md`
-   - SQL Server → `references/sqlserver-tips.md`
+4. **Herramientas NO-BD** (Mantis, SVN, SMTP) → `env.json` (`herramientas`, `contexto_personal`).
 
-5. **Responder con datos concretos**: queries, C# ADO.NET, connection strings, schema,
-   URL de Mantis, credenciales SVN, etc.
+5. **Tips de motor**: Oracle → `references/oracle-tips.md` · SQL Server → `references/sqlserver-tips.md`.
 
-6. Si el usuario no especifica proyecto y hay varios → preguntar cuál.
+6. Si `get_db_config` no resuelve (solución sin publicar) → informar y pedir que publique `C:\AIS\<Sln>\` o revise `Settings.xml`.
 
-7. Si el usuario indica entorno (DEV/PRE/PRO) → usar connection string correspondiente.
-   Sin indicación → usar `entornos.defecto` del proyecto en `env.json`.
+7. Si el usuario no especifica entorno → usar el índice 0 (DEV/TEST) de `Settings.xml`.
 
 # Modo Modelo BD (ERD / SQL / sync) — `/orchestrator-erd`
 
@@ -84,7 +78,8 @@ Cuando la petición es "actualiza el modelo BD", "muestra el ERD", "genera SQL d
 | Exportar a Oracle Data Modeler | `export_dmd(workspace)` | `<workspace>\BD\<proy>.dmd` |
 
 El SQL/HTML/XML generado NO entra en contexto — las tools devuelven la ruta. Leer el fichero solo si hay que revisarlo.
-`workspace` = cwd de la sesión (literal). El motor sale SIEMPRE de `docs\XMLConfig.xml`, nunca se pasa como argumento.
+`workspace` = cwd de la sesión (literal). El motor sale SIEMPRE de `Settings.xml` (`get_db_config`), nunca se pasa como argumento.
+`<proy>` en las rutas = nombre del `.sln` (carpeta `C:\AIS\<Sln>\`).
 
 # Disparadores típicos
 
@@ -99,7 +94,7 @@ El SQL/HTML/XML generado NO entra en contexto — las tools devuelven la ruta. L
 
 # Reglas
 
-⛔ Nunca inventar tablas, columnas ni credenciales — usar solo datos de los archivos cargados
+⛔ Nunca inventar tablas, columnas ni credenciales — para esquema/registros consultar SIEMPRE la BD viva (`get_table_schema` / `db_query`), nunca `schema.md` ni `model.json`
 ⛔ Nunca copiar `env.json` ni mostrar contraseñas en texto plano salvo que el usuario lo pida
 ⛔ No asumir equivalencias entre Oracle y SQL Server (tipos, paginación, fechas)
 ⛔ No usar `DATA_LENGTH` en Oracle — usar `CHAR_LENGTH`

@@ -35,9 +35,9 @@ Formato: `/orchestrator-generar-dalc <tabla> [modulo] [sln_path]`
 # Proceso
 
 1. Resolver workspace (per SKILL.md "Workspace y Rutas")
-2. `mcp__orchestrator-workspace__get_table_schema(workspace, [tabla])` → esquema completo
-3. Si la tabla no está en el modelo → intentar `db_query` con catálogo Oracle/SQL Server
-4. Detectar motor BD: `mcp__orchestrator-workspace__get_db_config(workspace)` → `oracle|sqlserver`
+2. `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")` → esquema VIVO de la BD publicada
+3. Si devuelve `warning`/`error` de conexión → reintentar `source="auto"` (snapshot) y avisar de que puede estar desactualizado
+4. Motor BD: `mcp__orchestrator-workspace__get_db_config(workspace)` → `ORACLE|SQLSERVER` (de `Settings.xml`)
 5. Inferir módulo del prefijo de tabla si no fue especificado
 6. Generar:
    a. `<Tabla>BE.cs` — Business Entity con propiedades tipadas y atributos ScacsWeb

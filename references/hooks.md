@@ -39,14 +39,14 @@ Todos los `.ps1` se guardan con **UTF-8 con BOM** (`EF BB BF`) — ver "Requisit
 
 | Script | Estado | Parámetros | Descripción |
 |--------|--------|-----------|-------------|
-| `hooks/get-config.ps1` | ✅ | `<workspace>` | Lee XMLConfig.xml → `motor, datasource, schema, model_path` |
-| `get_table_schema` | 🐍 | `(workspace, tables)` | Esquema de tablas del model.json. Tool nativa Python — sin hook |
-| `db_query` | 🐍 | `(workspace, sql, max_rows?)` | SELECT contra la BD del XMLConfig. Tool nativa Python — sin hook |
+| `hooks/get-config.ps1` | ✅ | `<workspace> [-SlnName <n>] [-Index <i>]` | Resuelve conexión desde `C:\AIS\<Sln>\bin\Settings\Settings.xml` (`oledbconnectionstring`) → `motor, datasource, schema, catalog, user, sln, environments, model_path` (sin password). Fallback legacy: `docs/XMLConfig.xml` |
+| `get_table_schema` | 🐍 | `(workspace, tables, source="auto", env_index=0)` | Esquema de tablas EN VIVO del catálogo; `source="auto"` cae al snapshot con warning si la conexión falla. Tool nativa Python — sin hook |
+| `db_query` | 🐍 | `(workspace, sql, max_rows?)` | SELECT EN VIVO contra la BD publicada (Settings.xml). Tool nativa Python — sin hook |
 | `sync_from_db` | 🐍 | `(workspace)` | Sincroniza tablas/columnas desde BD real. Tool nativa Python — sin hook |
 | `sync_model_tables` | 🐍 | `(workspace, tables)` | Actualiza tablas específicas post-migración. Tool nativa Python — sin hook |
 | `sync_indexes` | 🐍 | `(workspace)` | Sincroniza índices Oracle al modelo. Tool nativa Python — sin hook |
-| `compare_model` / `compare_model_tables` | 🐍 | `(workspace [, tables])` | Drift model.json vs BD real (motor de XMLConfig). Nativa Python — sin hook |
-| `generate_sql` | 🐍 | `(workspace)` | DDL desde el modelo en el dialecto de XMLConfig (Oracle: `VARCHAR2(n CHAR)`) → `C:\AIS\<proy>\scripts\<proy>-ddl.sql`. Sin argumento de motor. Nativa Python |
+| `compare_model` / `compare_model_tables` | 🐍 | `(workspace [, tables])` | Drift snapshot model.json vs BD real (motor de Settings.xml). Nativa Python — sin hook |
+| `generate_sql` | 🐍 | `(workspace)` | DDL desde el modelo en el dialecto de Settings.xml (Oracle: `VARCHAR2(n CHAR)`) → `C:\AIS\<proy>\scripts\<proy>-ddl.sql`. Sin argumento de motor. Nativa Python |
 | `generate_migration` | 🐍 | `(workspace)` | Script SQL idempotente modelo→BD → `C:\AIS\<proy>\scripts\<proy>-migration.sql`. Nativa Python |
 | `analyze_dalc` | 🐍 | `(workspace [, sln_path])` | Infiere relaciones desde `JOIN ... ON` en el SQL de los DALC (.cs). Nativa Python |
 | `render_erd` | 🐍 | `(workspace)` | ERD HTML (mermaid) → `<workspace>\BD\<proy>-erd.html`, abre navegador. Nativa Python |
@@ -73,7 +73,7 @@ Los repos ScacsWeb son **SVN**; el bloque Git está sin implementar (usar el CLI
 
 | Script | Estado | Parámetros | Descripción |
 |--------|--------|-----------|-------------|
-| `hooks/check-env.ps1` | ✅ | `<workspace> <proyecto>` | Valida XMLConfig, AIS, dotnet, SVN, Git, modelo BD, docs → `checks[], overall` |
+| `hooks/check-env.ps1` | ✅ | `<workspace> <proyecto>` | Valida Settings.xml (o XMLConfig legacy), AIS, dotnet, SVN, Git, modelo BD, docs → `checks[], overall` |
 | `hooks/log-execution.ps1` | ✅ | `<workspace> <solution> <task> [-Status success\|fail\|partial] [-Agents <lista,coma>]` | Registra la ejecución en `<workspace>\executions\history.json` (array; tope 500 vivas, excedente a `executions\archive\history-YYYY-MM.json`). Backend real de `log_execution` y fallback del paso 11 del pipeline |
 
 ## Librerías internas (no son hooks invocables)

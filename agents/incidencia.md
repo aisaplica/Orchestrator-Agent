@@ -26,7 +26,7 @@ Invocación directa via `/orchestrator-incidencia`. No forma parte del pipeline.
    - **DML config/parámetros** (tablas de configuración, parámetros, códigos, catálogos sin hijos) → patrón DELETE+INSERT
    - **DML con relaciones** (tablas con FK entrantes desde otras tablas) → patrón MERGE o INSERT WHERE NOT EXISTS
    - **DDL** (añadir/modificar/eliminar columna, índice, constraint) → guarda Oracle PL/SQL o SQL Server IF NOT EXISTS
-4. Si la tabla es identificable: consultar esquema con `mcp__orchestrator-workspace__get_table_schema(workspace, [tabla])` para verificar FK entrantes
+4. Si la tabla es identificable: `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")` para verificar columnas y FK entrantes en la BD real. Para comprobar filas afectadas → `db_query`.
 5. Leer template: `$SKILL_DIR\references\script-incidencia.template.sql`
 6. Generar script rellenando el template con los datos reales del cambio
 7. Aplicar política de idempotencia (ver `references/bd.md` sección "Scripts de incidencias")

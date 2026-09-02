@@ -20,9 +20,9 @@ Solo SELECT en BD
    - `mcp__orchestrator-workspace__compare_model(workspace)` → diff estructurado directo. Si OK → ir a Output.
 
 3. **Ruta manual (solo si MCP no disponible):**
-   - `mcp__orchestrator-workspace__get_model_index(workspace)` → lista de tablas y columnas (~15K tokens).
-     - Si no existe modelo → informar ("No hay modelo. Ejecutar 'actualiza el modelo BD' primero") y detener.
-   - Leer `docs/XMLConfig.xml` → obtener motor y schema/owner.
+   - `mcp__orchestrator-workspace__get_model_index(workspace)` → lista de tablas y columnas del snapshot.
+     - Si no existe modelo → informar ("No hay snapshot. Ejecutar 'actualiza el modelo BD' primero") y detener.
+   - `mcp__orchestrator-workspace__get_db_config(workspace)` → motor y schema/owner (de `Settings.xml`).
    - Consultar esquema real via `mcp__orchestrator-workspace__db_query(workspace, sql)`:
 
    **SQL Server:**

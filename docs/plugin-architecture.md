@@ -275,6 +275,21 @@ def nombre_tool(param1: str, param2: str = "default") -> str:
 # _bd_ctx / _query_oracle_schema / _query_sqlserver_schema / _load_model / _write_model_json.
 ```
 
+### Fuente de conexión BD (v1.15.0+)
+
+La conexión a BD de una solución se resuelve **en vivo** desde su carpeta de publicación:
+
+```
+C:\AIS\<Sln>\bin\Settings\Settings.xml → <SETTINGS><BBDD><oledbconnectionstring value="..."/>
+```
+
+- `<Sln>` = nombre del `.sln` (`_resolve_sln_name(workspace)` — raíz de trunk, `dotNet\Web`, o `dotNet\Batch\<N>`).
+- `_settings_conn(workspace, index=0)` parsea la connstring → `{motor, datasource, user, password, catalog, schema}`. `index` 0 = DEV/TEST, 1+ = PRE/PROD.
+- `_get_config` (para `get_db_config`) devuelve todo **menos** `password`. `_bd_ctx` / `_get_db_password` sí lo llevan — no exponerlos por una tool.
+- Fallback legacy: `<workspace>\docs\XMLConfig.xml`.
+- `get_table_schema` y `db_query` consultan el catálogo real; caen al snapshot `BD\<Sln>-model.json` solo si la conexión falla (con `warning`).
+- Los subprocesos `sqlplus`/`sqlcmd` se lanzan con `env=_clean_env()` (sin `http_proxy`) para evitar el `SP2-1502 / Error 46` del Instant Client.
+
 ---
 
 ## §7 — Hooks

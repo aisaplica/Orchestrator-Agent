@@ -42,33 +42,39 @@ Preferente: `mcp__orchestrator-workspace__search_code(workspace, sln_path, patte
 Reemplaza 3-8x Grep, garantiza scope, devuelve contexto. Usar para: usos de un método, strings, atributos, cualquier regex C#.
 Fallback (solo si search_code no disponible): Grep limitado a scope_dirs.
 
-## Modelo BD — orden de consulta (CRITICO)
+## Esquema BD — consulta EN VIVO (CRITICO)
 
-Cuando necesites tipos, columnas o relaciones de una tabla, seguir ESTE orden estrictamente:
+Cuando necesites tipos, columnas, longitudes, nullabilidad o registros reales de una tabla,
+**consulta la BD en vivo**. La conexión sale de `C:\AIS\<Sln>\bin\Settings\Settings.xml`
+(tag `oledbconnectionstring`), resuelta por `get_db_config(workspace)`.
 
-> **Índices disponibles:** si el modelo devuelve `indexes` para la tabla, úsalos al construir queries:
+> **Índices:** si el esquema devuelve `indexes` para la tabla, úsalos al construir queries:
 > - WHERE / JOIN: priorizar columnas indexadas — evitar filtros sobre columnas no indexadas en tablas grandes
 > - Índice compuesto `[COL_A, COL_B]`: el WHERE debe incluir `COL_A` (o `COL_A + COL_B`) en ese orden; filtrar solo por `COL_B` no usa el índice
 > - `unique: true`: la combinación de columnas es única — no necesitas DISTINCT ni deduplicación adicional
 
-**1. Modelo BD primero** (siempre): no sé qué tablas → `search_model(workspace, keyword)`; solo nombres de columnas → `get_model_index(workspace)` (~15K tok); tablas concretas → `get_table_schema(workspace, tables="T1,T2")` (~3K tok; fallback `hooks/get-bd-model.ps1 -Workspace "<ws>" -Tables "T1,T2"`).
+**1. Esquema de tablas concretas** → `get_table_schema(workspace, tables="T1,T2")`.
+Consulta el catálogo real (`source="auto"`, por defecto). Si la conexión falla, cae al snapshot
+`BD/<Sln>-model.json` y marca `warning` — los datos pueden estar desactualizados; señálalo.
 
-**2. Solo si la tabla NO está en el modelo** → buscar en código (DALCs, BE).
+**2. Registros / valores reales** → `mcp__orchestrator-workspace__db_query(workspace, sql)` (SOLO SELECT).
 
-**3. Solo si tampoco está en código** → BD real: `mcp__orchestrator-workspace__db_query(workspace, sql)`. `sync_model_tables`/`get_table_schema` (respaldados por `model.json`) siguen siendo la fuente autoritativa incluso aquí — usar `db_query` solo para confirmar puntualmente, no para explorar catálogo. Config/motor: ver `agents/db-env.md`.
-- Si el query-user no tiene acceso directo (`ORA-00942`) → **detener reintentos**. No probar otros schemas. Buscar datos en scripts SQL existentes del repo o en el código (DALCs).
-- Para "¿existe esta tabla?" / "¿qué columnas tiene?": nunca consultar vistas catálogo (`ALL_TABLES`, `ALL_OBJECTS`, `ALL_TAB_COLUMNS`, `USER_TABLES`) en bucle — max 1 intento. Pueden no reflejar una tabla recién creada (dictionary cache de la sesión/pool sin refrescar) aunque la tabla exista y sea consultable.
-- Si el usuario afirma que una tabla nueva ya existe, o `sync_model_tables`/`get_table_schema` no la encuentran: confirmar con UNA sola query funcional directa — `SELECT * FROM <TABLA> WHERE ROWNUM = 1` (Oracle) / `SELECT TOP 1 * FROM <TABLA>` (SQL Server). Si responde (aunque 0 filas) la tabla existe y esa misma query revela columnas reales — no insistir con catálogo.
+**3. Localizar dónde vive un concepto** (nombre de tabla desconocido) → `search_model` /
+`get_model_index` (snapshot, orientativo) y confirmar la tabla candidata con `get_table_schema`.
 
-Si `BD/<proyecto>-model.json` no existe → informar: "No hay modelo BD. Ejecuta `/orchestrator-erd` y di 'actualiza el modelo BD' para crearlo."
+- `ORA-00942` / sin permiso → **detener reintentos**. No probar otros schemas. Buscar en scripts SQL del repo o en los DALC/BE del código.
+- "¿existe esta tabla?" recién creada → una sola query funcional: `SELECT * FROM <TABLA> WHERE ROWNUM = 1` (Oracle) / `SELECT TOP 1 * FROM <TABLA>` (SQL Server). No insistir con vistas de catálogo en bucle.
+
+Si `get_db_config` devuelve `error` (solución sin publicar, sin `Settings.xml` ni `XMLConfig.xml`)
+→ informar: "No se resuelve la conexión BD. Publica la solución (`C:\AIS\<Sln>\`) o revisa `Settings.xml`."
 
 ## Scripts SQL generados
 
 Ruta destino para cualquier script SQL generado por agentes:
 ```
-C:\AIS\<proyecto>\scripts\
+C:\AIS\<Sln>\scripts\
 ```
-Donde `<proyecto>` = nombre del workspace (carpeta anterior a `trunk`). Ej: workspace `C:\Desarrollo\SVN\ScacsWeb\<Proyecto>\src\trunk` → `C:\AIS\<Proyecto>\scripts\`.
+Donde `<Sln>` = nombre del `.sln` de la solución (= nombre de la carpeta de publicación en `C:\AIS\`). Ej: `SCACSWebCDI.sln` → `C:\AIS\SCACSWebCDI\scripts\`.
 
 Crear la carpeta si no existe antes de escribir el fichero.
 

@@ -11,11 +11,18 @@ Experto senior en SQL Server y Oracle. Valida tipos, longitudes, nullabilidad y 
 
 ## Fuente de configuración (CRITICO)
 
-Preferente: `mcp__orchestrator-workspace__get_db_config(workspace)` → `motor`, `datasource`, `schema`, `model_path`.
+Conexión BD: `C:\AIS\<Sln>\bin\Settings\Settings.xml` → tag `oledbconnectionstring` (index 0 = DEV/TEST).
+Resolverla con `mcp__orchestrator-workspace__get_db_config(workspace)` → `motor`, `datasource`, `schema`, `catalog`, `user`, `sln`, `model_path`.
 Fallback: `hooks/get-config.ps1 <workspace>`.
-Para consultas puntuales: `mcp__orchestrator-workspace__db_query(workspace, sql)`.
-Para contexto de proyecto (credenciales, connection strings, esquema): `agents/db-env.md`.
-NO leer XMLConfig.xml manualmente.
+NO leer Settings.xml ni XMLConfig.xml a mano.
+
+## Esquema — EN VIVO (CRITICO)
+
+Validar tipos/longitudes/nullabilidad SIEMPRE contra la BD real:
+- `mcp__orchestrator-workspace__get_table_schema(workspace, "T1,T2")` → esquema vivo del catálogo (si la conexión cae, devuelve snapshot con `warning` — avísalo, no lo des por bueno en silencio).
+- `mcp__orchestrator-workspace__db_query(workspace, sql)` → valores/registros reales (SOLO SELECT).
+
+El snapshot `BD/<Sln>-model.json` es caché para ERD/offline, no fuente de verdad.
 
 ## Selección de motor (CRITICO)
 

@@ -147,8 +147,8 @@ Si tu proyecto sigue una arquitectura diferente, algunos agentes pueden necesita
 El servidor MCP `orchestrator-workspace` provee herramientas de:
 - Analisis de VCS (SVN/Git diff, log)
 - Compilacion y tests (.NET)
-- Consultas a BD (Oracle/SQL Server via XMLConfig.xml)
-- Gestion del modelo BD (JSON local)
+- Consultas a BD EN VIVO (Oracle/SQL Server) — conexion de `C:\AIS\<Sln>\bin\Settings\Settings.xml`
+- Gestion del snapshot del modelo BD (JSON local, para ERD/offline)
 - Busqueda de simbolos en codigo
 
 El servidor corre en la maquina local del usuario (`stdio`).
@@ -207,7 +207,7 @@ Configuracion: `.mcp.json` en la raiz del plugin.
 | **batch_find_symbols** | Busqueda multi-simbolo con una sola pasada `Select-String` — N veces mas rapido |
 | **visible:false (Oracle)** | Tablas sin permisos en `ALL_TABLES` se marcan `visible: false` en lugar de eliminarse |
 | **Escritor canonico model.json** | Toda escritura del modelo pasa por `_write_model_json` (UTF-8 BOM, CRLF, indent=2) — elimina bug de inflado 1.1→3.5MB de `ConvertTo-Json` PS5.1 |
-| **get-config.ps1** | Nuevo hook: lee `XMLConfig.xml` y devuelve configuracion BD como JSON |
+| **get-config.ps1** | Resuelve la conexion BD desde `C:\AIS\<Sln>\bin\Settings\Settings.xml` (tag `oledbconnectionstring`) y la devuelve como JSON sin password. Fallback legacy: `docs/XMLConfig.xml` |
 | **find-symbol.ps1** | Nuevo hook multi-simbolo con patron `Select-String` unico — reemplaza la version anterior de un solo simbolo |
 
 ---

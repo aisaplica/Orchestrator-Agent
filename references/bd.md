@@ -9,11 +9,32 @@
 
 ---
 
-# ⚙️ Configuración
+# ⚙️ Configuración / conexión
 
-Leer:
+**Fuente canónica de la cadena de conexión:**
 
-docs/XMLConfig.xml
+```
+C:\AIS\<Sln>\bin\Settings\Settings.xml
+  <SETTINGS><BBDD>
+    <oledbconnectionstring value="User Id=..;Password=..;Data Source=.."/>   ← index 0 = DEV/TEST
+    <oledbconnectionstring value="..."/>                                     ← index 1 = PRE
+```
+
+- `<Sln>` = nombre del `.sln` de la solución (= carpeta de publicación en `C:\AIS\`).
+- Motor autodetectado del `Data Source`: `(DESCRIPTION=` / `SERVICE_NAME` / `(SID=` → Oracle; `Initial Catalog=` → SQL Server.
+- Resolver con la tool `get_db_config(workspace)` (NUNCA leer el XML a mano). Devuelve `motor, datasource, schema, catalog, user, sln, environments, model_path` — sin password.
+- Fallback legacy: `<workspace>\docs\XMLConfig.xml` (solo si no hay `Settings.xml` publicado).
+
+**Consulta de esquema y registros — EN VIVO (regla):**
+
+| Necesitas | Tool | Notas |
+|-----------|------|-------|
+| Columnas / tipos / longitud / nullable / PK de tablas | `get_table_schema(workspace, "T1,T2", source="db")` | consulta el catálogo real; `source="auto"` cae al snapshot con `warning` si la conexión falla |
+| Registros / valores / conteos | `db_query(workspace, "SELECT ...")` | SOLO SELECT, sin multi-statement |
+| Entorno PRE/PROD | `env_index=1` (o 2) en ambas tools | si `environments > 1` |
+| Localizar dónde vive un concepto | `search_model` / `get_model_index` | snapshot `BD/<Sln>-model.json`, orientativo — confirmar con `get_table_schema` |
+
+⛔ El snapshot `model.json` y los `projects/<proy>/schema.md` son caché / contexto de negocio, **no** fuente de verdad de esquema.
 
 ---
 

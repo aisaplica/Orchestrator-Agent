@@ -43,7 +43,7 @@ Si no queda claro qué explicar → preguntar antes de analizar.
 2. `Skill(skill: "graphify", args: 'query "qué usa <elemento>"')` — dependencias y tablas BD referenciadas (edges READS/WRITES/CALLS).
 3. Con el `source_location` del paso 1, leer el fichero real con Read tool (líneas relevantes) — el grafo da contexto y localización rápida, pero el flujo de datos exacto y las tablas BD del Output se verifican siempre contra el código fuente, nunca se afirman solo desde el grafo.
 4. Si es un formulario .aspx: `mcp__orchestrator-workspace__scan_aspx(sln_path)` para entender los controles.
-5. Para cada tabla BD detectada → `mcp__orchestrator-workspace__get_table_schema(tabla)`.
+5. Para cada tabla BD detectada → `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")`.
 6. Leer `docs/scacs/00-index.md` → si hay sección de documentación funcional relevante, leerla como contexto.
 7. Nota de frescura: el grafo se actualiza solo tras build exitoso (`skills/orchestrator-agent/SKILL.md` paso 9b) — si hay cambios locales sin build reciente, verificar contra el código antes de dar por buena la explicación del grafo.
 8. Componer la explicación.
@@ -55,7 +55,7 @@ Si no queda claro qué explicar → preguntar antes de analizar.
    Si no encuentra → intentar con Glob y Grep limitados a scope_dirs
 2. Leer el fichero localizado con Read tool (leer solo las líneas relevantes)
 3. Si es un formulario .aspx: `mcp__orchestrator-workspace__scan_aspx(sln_path)` para entender los controles
-4. Identificar tablas BD referenciadas en el código → `mcp__orchestrator-workspace__get_table_schema(tabla)` para cada una
+4. Identificar tablas BD referenciadas en el código → `mcp__orchestrator-workspace__get_table_schema(workspace, "TABLA", source="db")` para cada una
 5. Rastrear dependencias inmediatas: clases que usa, métodos que llama (Grep en scope_dirs)
 6. Leer `docs/scacs/00-index.md` → si hay sección de documentación funcional relevante, leerla como contexto
 7. Componer la explicación
