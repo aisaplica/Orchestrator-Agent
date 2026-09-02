@@ -49,6 +49,7 @@ Scope siempre limitado a ficheros dentro de la solución especificada.
    - Tipo de cambio: fix / feat / refactor / docs / config
    - Ficheros afectados y cambios observados
    - Formato: `<tipo>(<ámbito>): <descripción>`
+   - El mensaje contiene SOLO la línea `<tipo>(<ámbito>): <descripción>` y, si aplica, un cuerpo funcional. **Sin líneas de atribución ni firmas de asistente** (`Co-Authored-By:`, `🤖 Generated with …`, `Signed-off-by:` de bots, etc.). SVN no gestiona co-autoría; cualquier guía global de attribution para git NO aplica aquí.
 9. Pedir al usuario:
    a. Confirmar o editar el mensaje de commit propuesto
    b. Confirmar que procede el commit
@@ -56,6 +57,7 @@ Scope siempre limitado a ficheros dentro de la solución especificada.
     ```
     svn commit <lista-ficheros-en-scope> -m "<mensaje>"
     ```
+    El valor de `-m` es exactamente el mensaje confirmado por el usuario: nunca añadir trailer de co-autoría, firma de asistente ni línea "Generated with".
     Si `svn.exe` no está en PATH → fallback: abrir TortoiseSVN con mensaje pre-rellenado:
     ```
     & "C:\Program Files\TortoiseSVN\bin\TortoiseProc.exe" /command:commit /path:"<workspace>" /logmsg:"<mensaje>"
@@ -78,6 +80,7 @@ Cualquier otra respuesta → no commitear, preguntar de nuevo.
 ⛔ No commitear si no hay confirmación explícita
 ⛔ No commitear ficheros excluidos automáticamente (ver paso 4)
 ⛔ No commitear si hay conflictos (C) detectados → informar y detener
+⛔ No incluir en el mensaje de commit líneas de atribución/co-autoría (`Co-Authored-By:`, `🤖 Generated with [Claude Code]`, `Signed-off-by:` de bots) ni ninguna firma de asistente — el mensaje SVN es solo texto funcional
 
 ---
 

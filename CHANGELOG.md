@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.15.1] — 2026-09-02
+
+### Fix — mensaje de commit SVN sin trailer de co-autoría
+
+**Motivo:** el agente `commit-svn` heredaba la guía global de attribution de git
+(`Co-Authored-By:`, `🤖 Generated with [Claude Code]`) y la añadía al mensaje de
+`svn commit`. SVN no gestiona co-autoría y esas líneas no deben aparecer.
+
+- `agents/commit-svn.md`:
+  - Paso 8 — el mensaje sugerido contiene solo `<tipo>(<ámbito>): <descripción>` (+ cuerpo
+    funcional opcional); prohibidas las líneas de atribución/firma de asistente.
+  - Paso 10 — el valor de `-m` es exactamente el mensaje confirmado, sin trailer.
+  - Reglas de seguridad — nueva línea ⛔ que veta `Co-Authored-By:`, `Generated with …`,
+    `Signed-off-by:` de bots y cualquier firma de asistente en el mensaje de commit.
+
 ## [1.15.0] — 2026-09-02
 
 ### Conexión BD en vivo desde `Settings.xml` (reemplaza la lectura de ficheros SQL/model.json como fuente de esquema)
