@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.16.0] — 2026-09-08
+
+### MCP server: transporte `streamable-http` (localhost) en vez de `stdio`
+
+**Motivo:** bajo el runtime de Claude Code (bun) en Windows, las llamadas a tools del
+MCP server por stdio se colgaban hasta el idle timeout de 1800 s (`sent no response or
+progress`). El server responde bien por stdio en cualquier otro cliente MCP y en tests
+directos — es una incompatibilidad del par bun ↔ Python/anyio stdio en Windows, no un
+bug del código. Se descartaron por tests: config fósil scope-user, intérprete/shim
+Python, versión de protocolo, backpressure de stderr, encoding de stdout, subprocess
+svn/git. Migrar el transporte a HTTP elimina el stdio de la ruta.
+
+- `mcp/orchestrator-workspace-server.py`:
+  - `__main__` acepta `--http [--host H] [--port N]` → `mcp.run(transport="streamable-http")`,
+    endpoint `http://127.0.0.1:7337/mcp`. Sin flags sigue en `stdio` (fallback para
+    Claude Desktop / inspector / tests).
+- `.mcp.json`: `{"type":"http","url":"http://127.0.0.1:7337/mcp"}` (antes `stdio`).
+- `hooks/mcp-serve.ps1` (nuevo): launcher idempotente del daemon HTTP. Comprueba el
+  puerto; si está libre lanza `pythonw ... --http` desacoplado (residente, sobrevive a
+  Claude Code) con log en `%LOCALAPPDATA%\orchestrator-workspace\`. `-Force` mata y
+  relanza. Puerto configurable por `$env:ORCH_MCP_PORT`; intérprete por `$env:ORCH_MCP_PYTHON`.
+- `hooks/hooks.json` (nuevo): manifest de hooks del plugin. `SessionStart`
+  (`startup|resume|clear`) ejecuta `mcp-serve.ps1`.
+- Docs: `docs/plugin-architecture.md` (§2 árbol, §3 `.mcp.json`, §6 arranque, §7 hooks),
+  `references/mcp.md` (sección Arranque), `references/troubleshooting.md` (MCP no conecta),
+  `README.md` (nota de instalación).
+
+**Tras actualizar: reiniciar Claude Code.** El hook levanta el daemon; Claude Code
+reintenta la conexión HTTP (3× + backoff) mientras arranca. En el peor caso (primera vez)
+puede hacer falta un segundo reinicio.
+
 ## [1.15.1] — 2026-09-02
 
 ### Fix — mensaje de commit SVN sin trailer de co-autoría

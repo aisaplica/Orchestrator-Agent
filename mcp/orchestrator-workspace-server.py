@@ -1911,4 +1911,22 @@ def parse_web_log(path: str, glob: str = "*.log", desde: str = "", niveles: str 
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    import argparse
+
+    ap = argparse.ArgumentParser(description="orchestrator-workspace MCP server")
+    ap.add_argument("--http", action="store_true",
+                    help="Servir por streamable-http (localhost) en vez de stdio.")
+    ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--port", type=int, default=7337)
+    args, _ = ap.parse_known_args()
+
+    if args.http:
+        # Transporte HTTP — evita el cuelgue de stdio bajo el runtime de Claude Code
+        # en Windows. El endpoint MCP queda en http://<host>:<port>/mcp
+        # Arrancado por hooks/mcp-serve.ps1 (SessionStart).
+        mcp.settings.host = args.host
+        mcp.settings.port = args.port
+        mcp.run(transport="streamable-http")
+    else:
+        # Fallback: stdio para otros clientes MCP (Claude Desktop, inspector, tests).
+        mcp.run(transport="stdio")

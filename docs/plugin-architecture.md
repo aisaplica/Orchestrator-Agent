@@ -19,7 +19,7 @@ orchestrator-skill-full/
 ├── .claude-plugin/
 │   ├── plugin.json          ← versión canónica del plugin
 │   └── marketplace.json     ← descriptor para marketplace local
-├── .mcp.json                ← declaración del MCP server
+├── .mcp.json                ← declaración del MCP server (type: http → daemon local)
 ├── SKILL.md                 ← skill raíz (legacy, apunta a skills/)
 ├── README.md
 ├── CHANGELOG.md
@@ -51,6 +51,8 @@ orchestrator-skill-full/
 ├── hooks/                   ← scripts PowerShell (fallback de las MCP tools). UTF-8 CON BOM (PS5.1)
 │   │                          23 ficheros implementados. NO todas las MCP tools tienen hook —
 │   │                          ver estado (✅/⚠️/🐍) en references/hooks.md
+│   ├── hooks.json            ← manifest de hooks del plugin (SessionStart → mcp-serve.ps1)
+│   ├── mcp-serve.ps1         ← launcher idempotente del daemon HTTP del MCP server
 │   ├── compile-check.ps1 lib-msbuild.ps1 test-runner-check.ps1 create-test-project.ps1
 │   ├── validate-solution.ps1 parse-sln.ps1 find-symbol.ps1 edit-ansi.ps1
 │   ├── get-config.ps1 check-env.ps1 log-execution.ps1 parse-weblog.ps1
@@ -112,7 +114,11 @@ Descriptor del marketplace local. Contiene la sección `plugins[].version` que d
 
 ### .mcp.json
 
-Declara el servidor `orchestrator-workspace` (tipo `stdio`, ejecuta `orchestrator-workspace-server.py`). No modificar salvo que se cambie el mecanismo de arranque del MCP.
+Declara el servidor `orchestrator-workspace`. Desde v1.16.0 es **`type: http`** apuntando
+a `http://127.0.0.1:7337/mcp` — un daemon local que arranca `hooks/mcp-serve.ps1`
+(ver §6). Antes era `type: stdio`; el stdio se cuelga bajo el runtime de Claude Code en
+Windows. No modificar salvo que se cambie el mecanismo de arranque del MCP (y entonces
+sincronizar `hooks/mcp-serve.ps1`, `hooks/hooks.json` y `references/mcp.md`).
 
 ---
 
@@ -229,6 +235,21 @@ name: orchestrator-<nombre>
 **Nombre del server:** `orchestrator-workspace`
 **Tool prefix:** `mcp__orchestrator-workspace__`
 
+### Arranque (v1.16.0+)
+
+Transporte **`streamable-http` en localhost**, no `stdio` (el stdio se cuelga hasta el
+idle timeout de 1800 s bajo el runtime bun de Claude Code en Windows — el server responde
+bien por stdio en cualquier otro cliente MCP).
+
+- `__main__` acepta `--http [--host H] [--port N]` → `mcp.run(transport="streamable-http")`.
+  Sin flags → `stdio` (fallback para Claude Desktop / inspector / tests).
+- `.mcp.json` = `{"type":"http","url":"http://127.0.0.1:7337/mcp"}`.
+- `hooks/mcp-serve.ps1` levanta el daemon (`pythonw ... --http`) en `SessionStart` vía
+  `hooks/hooks.json`. Idempotente (comprueba el puerto), **residente** (sobrevive a Claude
+  Code), logs en `%LOCALAPPDATA%\orchestrator-workspace\`.
+- Config: `$env:ORCH_MCP_PORT`, `$env:ORCH_MCP_PYTHON`. Reinicio: `mcp-serve.ps1 -Force`.
+- Claude Code reintenta la conexión HTTP (3× + backoff) → cubre la carrera hook-vs-conexión.
+
 ### Tools disponibles (40)
 
 > No todas tienen hook fallback implementado. `references/hooks.md` marca el estado de cada una:
@@ -296,6 +317,16 @@ C:\AIS\<Sln>\bin\Settings\Settings.xml → <SETTINGS><BBDD><oledbconnectionstrin
 
 **Ubicación:** `hooks/*.ps1`
 **Convención:** kebab-case, nombre descriptivo de la acción
+
+### Dos tipos de hook
+
+1. **Fallback de MCP tools** (la mayoría): los llama el server Python vía `_run_ps()`.
+   No se registran en `hooks/hooks.json`.
+2. **Hooks de eventos de Claude Code**: registrados en `hooks/hooks.json` (manifest del
+   plugin). Hoy solo `SessionStart → mcp-serve.ps1` (arranca el daemon HTTP del MCP,
+   ver §6). Formato del manifest: `{ "hooks": { "<Evento>": [ { "matcher": "...",
+   "hooks": [ { "type": "command", "command": "...", "timeout": N } ] } ] } }`.
+   `${CLAUDE_PLUGIN_ROOT}` disponible en `command`.
 
 ### Estructura básica de un hook
 

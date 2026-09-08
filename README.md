@@ -45,7 +45,15 @@ En Claude Code:
 ```
 
 Si el plugin esta activo, el agente respondera con el historial de ejecuciones.
-El servidor MCP (`orchestrator-workspace`) arranca automaticamente al primer uso.
+
+### Servidor MCP
+
+Desde v1.16.0 el servidor MCP (`orchestrator-workspace`) corre como **daemon HTTP local**
+(`127.0.0.1:7337`). Lo arranca el hook `SessionStart` del plugin (`hooks/mcp-serve.ps1`).
+
+**Tras instalar o actualizar el plugin: reiniciar Claude Code.** El daemon queda residente;
+las sesiones siguientes lo encuentran ya en marcha. Si las tools no responden la primera
+vez, reiniciar una segunda vez (ver `references/troubleshooting.md`).
 
 ---
 

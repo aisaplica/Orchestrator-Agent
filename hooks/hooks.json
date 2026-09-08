@@ -1,0 +1,18 @@
+{
+  "description": "Hooks del plugin orchestrator-skill-full",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PLUGIN_ROOT}/hooks/mcp-serve.ps1\"",
+            "timeout": 20,
+            "statusMessage": "Arrancando daemon MCP orchestrator-workspace"
+          }
+        ]
+      }
+    ]
+  }
+}

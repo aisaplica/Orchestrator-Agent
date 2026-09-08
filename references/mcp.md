@@ -3,6 +3,23 @@
 Servidor MCP local. Preferente sobre hooks — más eficiente en tokens.
 Fallback: hook equivalente listado en `references/hooks.md`.
 
+## Arranque (v1.16.0+)
+
+El server se sirve por **streamable-http en localhost**, no por stdio (el stdio se cuelga
+bajo el runtime de Claude Code en Windows).
+
+- Endpoint: `http://127.0.0.1:7337/mcp` — declarado en `.mcp.json` como `{"type":"http"}`.
+- Daemon: `pythonw mcp/orchestrator-workspace-server.py --http --port 7337`, **residente**
+  (sobrevive a Claude Code). Lo lanza `hooks/mcp-serve.ps1` en `SessionStart`
+  (`hooks/hooks.json`). Es idempotente: si el puerto ya responde, no hace nada.
+- Logs: `%LOCALAPPDATA%\orchestrator-workspace\server.log` / `server.err.log`.
+- Config: `$env:ORCH_MCP_PORT` (puerto, debe coincidir con `.mcp.json`),
+  `$env:ORCH_MCP_PYTHON` (ruta a un intérprete Python 3.11+).
+- Reinicio manual del daemon: `pwsh -File hooks/mcp-serve.ps1 -Force`.
+- Matar el daemon: `Get-NetTCPConnection -LocalPort 7337 -State Listen | %{ Stop-Process -Id $_.OwningProcess -Force }`.
+- Modo stdio (otros clientes MCP: Claude Desktop, inspector, tests): ejecutar el server
+  sin `--http`.
+
 **Cobertura de hooks:** no todas las tools tienen hook fallback. Estado en `references/hooks.md`.
 Las tools BD/modelo son **nativas Python** (🐍): funcionan con el MCP activo, sin hook fallback —
 `compare_model`, `compare_model_tables`, `generate_sql`, `generate_migration`, `render_erd`,

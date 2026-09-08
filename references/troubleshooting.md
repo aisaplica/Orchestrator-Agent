@@ -98,6 +98,31 @@ Get-ChildItem "hooks\*.ps1" | ForEach-Object {
 
 ---
 
+## MCP `orchestrator-workspace` no conecta / tools no responden
+
+Síntoma: las tools `mcp__orchestrator-workspace__*` no aparecen, o cuelgan hasta timeout.
+
+Causa: desde v1.16.0 el MCP se sirve por HTTP en `127.0.0.1:7337` mediante un daemon
+residente que arranca `hooks/mcp-serve.ps1` en `SessionStart`. Si el daemon no está
+levantado, no hay conexión.
+
+Solución:
+
+- Reiniciar Claude Code (el hook relanza el daemon; Claude Code reintenta la conexión
+  HTTP 3× + backoff). En la primera vez tras actualizar puede hacer falta un 2º reinicio.
+- Comprobar el daemon: `Test-NetConnection 127.0.0.1 -Port 7337 -InformationLevel Quiet`
+  (debe dar `True`).
+- Relanzar a mano: `pwsh -File $SKILL_DIR\hooks\mcp-serve.ps1 -Force`.
+- Revisar `%LOCALAPPDATA%\orchestrator-workspace\server.err.log`.
+- Puerto 7337 ocupado por otro proceso: definir `$env:ORCH_MCP_PORT` a otro puerto y
+  cambiar el mismo puerto en `.mcp.json` (`url`).
+- Sin intérprete Python: instalar Python 3.11+ o definir `$env:ORCH_MCP_PYTHON` con la
+  ruta a `pythonw.exe` / `python.exe`.
+- Daemon colgado: matarlo y dejar que el hook lo relance —
+  `Get-NetTCPConnection -LocalPort 7337 -State Listen | %{ Stop-Process -Id $_.OwningProcess -Force }`.
+
+---
+
 ## NullReferenceException
 
 Causas:
