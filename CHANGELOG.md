@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.17.1] — 2026-10-13
+
+### Fix
+- `agents/smoke.md` — todas las órdenes `agent-browser` (`errors`, `console`, `network`, `get`, `--version` y `close`) llevan `timeout`, para que un proceso colgado no impida el cierre garantizado ni el informe. Si `close` agota el timeout, reintenta con `close --all` y avisa si queda Chrome abierto.
+
 ## [1.17.0] — 2026-10-13
 
 ### Nuevo modo `/orchestrator-smoke`: smoke test en runtime con `agent-browser`

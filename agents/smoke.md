@@ -37,7 +37,7 @@ Cada proyecto puede tener login, pantalla de acceso y perfil de selección disti
 
 ## 1. Precheck (cada fallo = SKIP con motivo, nunca error del pipeline)
 
-1. `agent-browser --version`. Si falla → SKIP: "agent-browser no instalado (`npm i -g agent-browser`)".
+1. `timeout 30 agent-browser --version`. Si falla → SKIP: "agent-browser no instalado (`npm i -g agent-browser`)".
 2. Chrome for Testing: `ls "$USERPROFILE/.agent-browser/browsers"`. Si no existe → SKIP: "ejecutar `agent-browser install`".
    Sin Chrome, el primer `open` se cuelga sin salida.
 3. Resolver perfil (ver §2). Con `url_login` conocida: `curl -s -o /dev/null -m 5 -w "%{http_code}" <url_login>`.
@@ -94,14 +94,16 @@ temporal en esa misma orden Bash; `""` → omitir el `fill` de contraseña.)
    `<base>` = `url_login` sin el último segmento. Si el login ya aterriza en la pantalla pedida, no reabrir.
 4. **Recogida** (todo a ficheros de evidencia, no al contexto):
    - `timeout 60 $A snapshot -d 3 > "$EV/02-esqueleto.txt"` — esqueleto (<1 KB). NO usar el snapshot completo (110 KB+ en pantallas con grid).
-   - `$A errors > "$EV/03-errors.txt"` · `$A console > "$EV/04-console.txt"`
-   - `$A network requests > "$EV/05-network.txt"`, filtrando después los no 200/304 con `grep -v -E ' (200|304)$'`.
+   - `timeout 30 $A errors > "$EV/03-errors.txt"` · `timeout 30 $A console > "$EV/04-console.txt"`
+   - `timeout 30 $A network requests > "$EV/05-network.txt"`, filtrando después los no 200/304 con `grep -v -E ' (200|304)$'`.
    - `timeout 60 $A screenshot "$EV/06-pantalla.png"`
-   - `$A get url` y `$A get title`: comprobar que la URL final es la pantalla pedida (no una redirección a login ni a una pantalla de error).
+   - `timeout 30 $A get url` y `timeout 30 $A get title`: comprobar que la URL final es la pantalla pedida (no una redirección a login ni a una pantalla de error).
    - Detección de pantalla de error de ASP.NET: buscar en el esqueleto/título `Server Error in`, `Runtime Error`, `Error de servidor`, `Exception`.
 5. **Pestañas / navegación interna** (opcional, solo si el usuario lo pide o el esqueleto muestra pestañas): `find text "<pestaña>" click`
    esperando el overlay entre una y otra, y volver a leer `errors` y los no-200 al final.
-6. **Cierre**: `$A close` **siempre**, aunque haya fallado algo.
+6. **Cierre**: `timeout 30 $A close` **siempre**, aunque haya fallado algo. Si el `close` agota el timeout,
+   reintentar una vez con `timeout 30 agent-browser close --all` y, si tampoco responde, avisar al usuario de que
+   queda un proceso de Chrome/`agent-browser` abierto (no bloquear el informe).
 
 # Solo lectura — acciones prohibidas
 
