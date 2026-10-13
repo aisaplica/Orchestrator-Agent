@@ -129,6 +129,7 @@ vez, reiniciar una segunda vez (ver `references/troubleshooting.md`).
 | `/orchestrator-dashboard` | Dashboard HTML con KPIs y ultimas ejecuciones del pipeline |
 | `/orchestrator-documentar` | Genera documentacion de una clase/modulo en formato ScacsWeb |
 | `/orchestrator-workflow` | Consulta la documentacion funcional del Workflow (etapas, señales, transiciones, tablas WF*), cruzada con el esquema real |
+| `/orchestrator-smoke` | Smoke test en runtime de una pantalla `.aspx` contra la web local con `agent-browser` (errores de página, consola y red, captura de evidencia). Perfil por proyecto en `projects/<Proyecto>/smoke.json` (contraseña `null` = preguntar). Solo lectura, solo hosts locales |
 | `/orchestrator-idiomas` | Gestion de literales multiidioma |
 | `/orchestrator-help` | Renderiza README y CHANGELOG del plugin como pagina HTML |
 

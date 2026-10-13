@@ -225,6 +225,7 @@ name: orchestrator-<nombre>
 | `seguridad` | `/orchestrator-security` |
 | `dependencias` | `/orchestrator-deps` |
 | `scacs-docs` | `/orchestrator-scacs-docs` |
+| `smoke` | `/orchestrator-smoke` |
 | `mantis` | Inline en pipeline (Mantis #NNNN) |
 
 ---

@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.17.0] — 2026-10-13
+
+### Nuevo modo `/orchestrator-smoke`: smoke test en runtime con `agent-browser`
+
+**Motivo:** el pipeline era solo estático (build, tests, security scan). Una pantalla `.aspx` podía compilar y
+fallar en runtime sin que nadie lo detectara. Prueba con Playwright MCP y `agent-browser` sobre
+`CM01010MDC1.aspx`: ambos válidos, pero los snapshots completos pesan 110-139 KB; `agent-browser snapshot -d 3`
+da el esqueleto en <1 KB y detecta el overlay de carga que bloquea los clicks.
+
+- `agents/smoke.md` (nuevo): login, selección de usuario, apertura de la pantalla, `errors`/`console`/`network`,
+  captura y veredicto PASS/WARN/FAIL/SKIP. CLI desde Bash (no MCP). Evidencias en `%TEMP%\orchestrator-smoke\`
+  (fuera del repo). Solo lectura. Precheck de `agent-browser`, Chrome for Testing y web levantada → SKIP, no fallo.
+- `commands/orchestrator-smoke.md` (nuevo): slash command.
+- `smoke.template.json` (nuevo): plantilla del perfil por proyecto `projects/<Proyecto>/smoke.json`
+  (login, usuario, selección de usuario, overlay, atajos de pantallas). `password: null` = preguntar cada vez,
+  `""` = contraseña vacía. Solo hosts locales (`localhost`, `127.0.0.1`, `*.localhost`, `*.test`).
+- `.gitignore`: `projects/*/smoke.json` (las credenciales de prueba no se suben).
+- `skills/orchestrator-agent/SKILL.md`: fila en `# Modos directos` y paso opcional **9c Smoke** tras el build
+  (SKIP no bloquea; FAIL se informa sin revertir).
+- `README.md`, `docs/plugin-architecture.md`: documentación del modo.
+- `SKILL.md` (raíz) no se toca: su tabla de modos ya estaba desincronizada de la de `skills/orchestrator-agent/`.
+
 ## [1.16.0] — 2026-09-08
 
 ### MCP server: transporte `streamable-http` (localhost) en vez de `stdio`

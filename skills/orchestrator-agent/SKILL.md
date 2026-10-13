@@ -194,6 +194,9 @@ Flujo estricto — no saltar pasos. Leer el agente correspondiente en cada etapa
 9b. **Graphify Update** (solo si el build fue exitoso) — actualizar grafo de conocimiento del proyecto:
    `Skill(skill: "graphify", args: "update \"C:\\Desarrollo\\SVN\\ScacsWeb\\<proyecto>\\src\"")`
    Donde `<proyecto>` = carpeta anterior a `src\trunk\` en el workspace (ej: workspace `C:\Desarrollo\SVN\ScacsWeb\Ingenieros\src\trunk` → `<proyecto>` = `Ingenieros`).
+9c. **Smoke** (opcional — solo proyectos Online y solo si el usuario dio URL de login o existe `projects/<proyecto>/smoke.json`) → `$SKILL_DIR\agents\smoke.md`
+   Tras un build exitoso, abre en la web local la pantalla `.aspx` tocada y comprueba errores de página/consola/red. Solo lectura, solo hosts locales.
+   SKIP (web no levantada, sin `agent-browser`, sin perfil) **no bloquea**; FAIL se informa pero no revierte el build.
 10. **DB Env** (solo si añadió/modificó tablas, columnas o DALCs) → `$SKILL_DIR\agents\db-env.md`
 10b. **Checklist final** OBLIGATORIO — confirmar explícitamente antes de Log, no asumir:
     - Build (paso 9) se ejecutó de verdad (no solo `compile_check` del validator) y hay evidencia de copia a AIS (`C:\AIS\<proyecto>\bin\` Batch, `C:\AIS\<proyecto>\Web\` Online).
@@ -259,6 +262,7 @@ Patrón: mensaje contiene `.sln - ` + descripción → pipeline principal | cual
 | Ejecutar tests | `/orchestrator-test`, "ejecuta tests de X.sln", "pasa los tests" | `$SKILL_DIR\agents\test.md` |
 | Cobertura | `/orchestrator-cobertura`, "cobertura de tests X.sln", "qué métodos no tienen test" | `$SKILL_DIR\agents\cobertura.md` |
 | Release notes | `/orchestrator-release-notes`, "notas de versión", "qué cambió en los últimos commits" | `detect_vcs` → `$SKILL_DIR\agents\release-notes.md` |
+| Smoke test | `/orchestrator-smoke`, "smoke test de la pantalla X", "prueba la pantalla X en la web local" | `$SKILL_DIR\agents\smoke.md` |
 | Deshacer | `/orchestrator-deshacer`, "deshaz los cambios de X.sln", "revert X.sln" | `detect_vcs` → `$SKILL_DIR\agents\deshacer.md` |
 | Doc drift | `/orchestrator-doc-drift`, "documentación obsoleta de X.sln", "docs desactualizados" | `detect_vcs` → `$SKILL_DIR\agents\doc-drift.md` |
 | Sync indexes | `/orchestrator-sync-indexes [workspace]`, "sincroniza índices BD", "sync indexes" | `$SKILL_DIR\agents\sync-indexes.md` |

@@ -1,0 +1,24 @@
+{
+    "_instrucciones": [
+        "Copia este archivo como projects/<Proyecto>/smoke.json y rellena los valores reales.",
+        "projects/*/smoke.json está en .gitignore — nunca se sube al repositorio.",
+        "Usar SOLO usuarios de pruebas de desarrollo y URLs locales (localhost, 127.0.0.1, *.localhost, *.test).",
+        "password: null = preguntar cada vez · \"\" = contraseña vacía (sin contraseña) · texto = usarla (en claro, fichero local).",
+        "Todos los campos son opcionales salvo url_login; los que falten se deducen o se preguntan."
+    ],
+    "url_login": "http://localhost:<PUERTO>/<Aplicacion>/frmLogin.aspx",
+    "login": {
+        "usuario": "Usuario",
+        "password": "Contraseña",
+        "boton": "Login"
+    },
+    "usuario": "<USUARIO_PRUEBAS>",
+    "password": null,
+    "seleccion_usuario": {
+        "texto_fila": "<TEXTO_FILA_A_ELEGIR>"
+    },
+    "overlay_selector": "#loader_general_overlay",
+    "pantallas": {
+        "<NombrePantalla>": "<Modulo>/<NombrePantalla>.aspx"
+    }
+}

@@ -1,6 +1,7 @@
 # Credenciales y datos sensibles — nunca commitear
 env.json
 projects/*/schema.md
+projects/*/smoke.json
 
 # Python
 __pycache__/
