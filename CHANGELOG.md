@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.17.2] — 2026-10-13
+
+### Fix (hallazgos de la primera ejecución real contra bancamarch)
+- `agents/smoke.md` — **nunca encadenar la salida de `agent-browser` por tubería**: el daemon hereda la tubería y la orden se cuelga aunque `timeout` mate al cliente; siempre redirigir a fichero.
+- `agents/smoke.md` — la espera del overlay usaba `display`, pero `#loader_general_overlay` es un `div` permanente con `display:block` y tamaño 0×0 (padre `display:none`); ahora usa `getBoundingClientRect().width===0`, con `wait 400` tras cada click (el postback muestra el overlay de forma asíncrona) y un reintento si el click falla por "covered by overlay".
+
 ## [1.17.1] — 2026-10-13
 
 ### Fix

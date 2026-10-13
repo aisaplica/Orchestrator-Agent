@@ -67,7 +67,13 @@ Cada proyecto puede tener login, pantalla de acceso y perfil de selección disti
 
 ## 3. Flujo de navegación
 
-Todas las órdenes `agent-browser` van con `timeout` (ej. `timeout 90`). Sesión nombrada para no mezclar con otras:
+Todas las órdenes `agent-browser` van con `timeout` (ej. `timeout 90`).
+
+⛔ **Nunca encadenar la salida de `agent-browser` por tubería** (`| tail`, `| tee`, `| head`…): el primer comando de
+una sesión arranca un daemon que hereda la tubería y la mantiene abierta, así que la orden se cuelga aunque `timeout`
+mate al cliente (observado: >240 s). **Siempre redirigir a fichero** (`> "$EV/x.txt" 2>&1`) y leer el fichero después.
+
+Sesión nombrada para no mezclar con otras:
 `--session smoke-<Proyecto>`. Carpeta de evidencias: `--evidencias` o `$TEMP/orchestrator-smoke/<yyyyMMdd-HHmmss>/`
 (fuera del repo). Crearla antes de empezar.
 
@@ -84,9 +90,13 @@ timeout 30 $A click @<ref_boton>
 (Si la contraseña se preguntó en el chat y no hay perfil, pasarla a la orden por variable de entorno
 temporal en esa misma orden Bash; `""` → omitir el `fill` de contraseña.)
 
-1. **Esperar overlay antes de cada click.** Si hay `overlay_selector`:
-   `timeout 30 $A wait --fn "!document.querySelector('<overlay_selector>') || getComputedStyle(document.querySelector('<overlay_selector>')).display==='none'"`.
-   Sin esa espera, los clicks tras un postback fallan con "covered by loader overlay". Si agota el timeout → WARN "overlay atascado".
+1. **Esperar overlay antes de cada click.** Si hay `overlay_selector`, tras **cada** click: `timeout 10 $A wait 400`
+   (el postback muestra el overlay de forma asíncrona, después de que el click devuelva) y luego
+   `timeout 30 $A wait --fn "(()=>{const e=document.querySelector('<overlay_selector>');return !e||e.getBoundingClientRect().width===0})()"`.
+   El overlay de AIS es un `div` **permanente** con `display:block` pero tamaño 0×0 (su padre está en `display:none`),
+   así que comprobar `display` del propio elemento NO sirve: usar su tamaño.
+   Si un click falla con "covered by `<overlay>`": esperar de nuevo con esa misma condición y **reintentar una vez**.
+   Si la espera agota el timeout → WARN "overlay atascado".
 2. **Selección de usuario** (si `seleccion_usuario.texto_fila`): tras el login, si `get url` sigue en la pantalla de login
    o el snapshot muestra una tabla de selección → `timeout 30 $A find text "<texto_fila>" click`. Si aparece pantalla de
    selección y no hay `texto_fila` → preguntar al usuario la fila (NO volcar el grid al contexto: ~20k tokens).
