@@ -23,7 +23,8 @@ ScacsWeb: Ingenieros, BM/bancamarch, BAPRO, CRA, Macro, PAEAR, Patagonia, etc.
 
 ```
 $SKILL_DIR\
-├── env.json                          ← Mantis / SVN / correo / contexto_personal
+(env.json NO está aquí: vive en ~/.claude/orchestrator-skill-full/env.json, persiste entre versiones)
+├── (env.json)                        ← Mantis / SVN / correo / contexto_personal
 ├── references\oracle-tips.md
 ├── references\sqlserver-tips.md
 └── projects\<nombre>\schema.md       ← SOLO contexto de negocio (qué representan las tablas), no esquema técnico
@@ -34,14 +35,17 @@ $SKILL_DIR\
 # Proceso
 
 0. **Verificar `env.json`** — antes de cualquier acción:
-   - Comprobar si existe `$SKILL_DIR\env.json`
-   - Si **NO existe**: copiar `$SKILL_DIR\env.template.json` → `$SKILL_DIR\env.json`
+   - Ruta persistente: `$HOME\.claude\orchestrator-skill-full\env.json` (sobrevive a las actualizaciones del plugin)
+   - Si **NO existe**: `. "$SKILL_DIR\hooks
+esolve-env.ps1"; Resolve-EnvJsonPath` migra el `env.json` de versiones anteriores
+   - Si sigue sin existir: copiar la plantilla a la ruta persistente
      ```powershell
-     Copy-Item "$SKILL_DIR\env.template.json" "$SKILL_DIR\env.json"
+     New-Item -ItemType Directory -Force "$HOME\.claude\orchestrator-skill-full" | Out-Null
+     Copy-Item "$SKILL_DIR\env.template.json" "$HOME\.claude\orchestrator-skill-full\env.json"
      ```
      Luego informar al usuario:
      > ⚠️ **Primera ejecución**: se ha creado `env.json` desde la plantilla.
-     > Ábrelo en `$SKILL_DIR\env.json` y rellena los valores `<COMPLETAR>` con tus credenciales reales.
+     > Ábrelo en `$HOME\.claude\orchestrator-skill-full\env.json` y rellena los valores `<COMPLETAR>` con tus credenciales reales.
      > Después repite tu petición.
      
      **Detener aquí** — no continuar hasta que el usuario confirme que ha rellenado el archivo.

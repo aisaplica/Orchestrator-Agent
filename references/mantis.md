@@ -4,11 +4,11 @@
 
 1. **`env.json` del propio plugin** (recomendado, mismo archivo que usa `db-env`):
    ```
-   <raíz del plugin>\env.json
+   %USERPROFILE%\.claude\orchestrator-skill-full\env.json   (persiste entre versiones)
    > herramientas.mantis.url
    > herramientas.mantis.api_key
    ```
-   Si no existe, copiar `env.template.json` → `env.json` en la raíz del plugin y rellenar.
+   Si no existe, se migra solo desde versiones anteriores; si no, copiar `env.template.json` → esa ruta y rellenar.
 
 2. **Variables de entorno** (fallback):
    ```powershell

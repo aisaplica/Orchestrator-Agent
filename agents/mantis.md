@@ -20,11 +20,11 @@ Consulta MantisBT via REST API. Solo lectura — no modifica código ni ejecuta 
 # Paso 1 — Resolver credenciales (OBLIGATORIO en ambos modos)
 
 Las credenciales las resuelve automáticamente `hooks\mantis-cli.ps1` (orden: parámetro inline >
-`env.json` en la raíz del plugin > `$env:MANTIS_URL`/`$env:MANTIS_API_KEY`). No hace falta leerlas
+`env.json` persistente (`~/.claude/orchestrator-skill-full/`) > `$env:MANTIS_URL`/`$env:MANTIS_API_KEY`). No hace falta leerlas
 a mano antes de invocar el CLI.
 
 - Si el CLI falla por credenciales ausentes → informar: "Configura `herramientas.mantis` en
-  `env.json` (raíz del plugin, copiar desde `env.template.json`) o define `MANTIS_URL`/`MANTIS_API_KEY`
+  `~/.claude/orchestrator-skill-full/env.json` (copiar desde `env.template.json`) o define `MANTIS_URL`/`MANTIS_API_KEY`
   como variables de entorno."
 
 ---

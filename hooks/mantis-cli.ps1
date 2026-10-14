@@ -68,8 +68,8 @@ function Resolve-MantisCredentials {
     $key = $KeyParam
 
     if (-not $url -or -not $key) {
-        $pluginRoot = Split-Path $PSScriptRoot -Parent
-        $envPath = Join-Path $pluginRoot "env.json"
+        . (Join-Path $PSScriptRoot "resolve-env.ps1")
+        $envPath = Resolve-EnvJsonPath
         if (Test-Path $envPath) {
             try {
                 $cfg = Get-Content $envPath -Raw | ConvertFrom-Json

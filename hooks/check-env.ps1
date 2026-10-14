@@ -37,7 +37,8 @@ $OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
 # Check 0: env.json del plugin
 $pluginRoot = Split-Path $PSScriptRoot -Parent
-$envJson     = Join-Path $pluginRoot "env.json"
+. (Join-Path $PSScriptRoot "resolve-env.ps1")
+$envJson     = Resolve-EnvJsonPath
 $envTemplate = Join-Path $pluginRoot "env.template.json"
 if (Test-Path $envJson) {
     try {
@@ -52,6 +53,7 @@ if (Test-Path $envJson) {
         Add-Check "env.json" "WARN" "Existe pero error al parsear JSON"
     }
 } elseif (Test-Path $envTemplate) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $envJson -Parent) | Out-Null
     Copy-Item $envTemplate $envJson
     Add-Check "env.json" "FAIL" "No existia — creado desde plantilla. Rellena $envJson con tus credenciales reales."
 } else {

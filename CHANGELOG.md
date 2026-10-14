@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.3] — 2026-10-14
+
+### Fix
+- `env.json` se perdía en cada actualización del plugin: vivía en la carpeta versionada de la caché (`cache\...\<version>\env.json`, gitignored) y cada versión nueva arrancaba sin él. Ahora la ubicación persistente es `~/.claude/orchestrator-skill-full/env.json`.
+- `hooks/resolve-env.ps1` (nuevo) — `Resolve-EnvJsonPath`: si no existe el persistente, migra automáticamente el `env.json` de la carpeta del plugin, de la versión hermana más reciente de la caché o del legacy `~/.claude/skills/project-db-env/env.json`.
+- `hooks/check-env.ps1`, `hooks/mantis-cli.ps1`, `agents/db-env.md`, `agents/mantis.md`, `references/mantis.md`, `GUIA-PLUGIN.md` — usan la ruta persistente.
+
 ## [1.17.2] — 2026-10-13
 
 ### Fix (hallazgos de la primera ejecución real contra bancamarch)

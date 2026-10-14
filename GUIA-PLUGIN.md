@@ -216,9 +216,10 @@ El plugin gestiona el contexto de base de datos y herramientas de forma **autón
 
 ### Estructura de `env.json`
 
+`env.json` vive **fuera** del plugin, en `%USERPROFILE%\.claude\orchestrator-skill-full\env.json`, para sobrevivir a las actualizaciones (la carpeta del plugin está versionada y se recrea en cada versión). Si falta, se migra automáticamente desde versiones anteriores.
+
 ```
 <directorio-del-plugin>/
-├── env.json              ← TU configuración local (gitignored, nunca se sube)
 ├── env.template.json     ← Plantilla vacía (incluida en el repositorio)
 └── projects/
     ├── Ingenieros/
